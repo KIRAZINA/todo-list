@@ -169,7 +169,7 @@ class TaskControllerRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .delete("/api/tasks/{id}")
                 .then()
-                .statusCode(200);
+                .statusCode(204);
 
         // Verify task is deleted
         given()
@@ -255,7 +255,7 @@ class TaskControllerRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .get("/api/tasks")
                 .then()
-                .statusCode(403);
+                .statusCode(401);
 
         given()
                 .body("""
@@ -268,7 +268,7 @@ class TaskControllerRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .post("/api/tasks")
                 .then()
-                .statusCode(403);
+                .statusCode(401);
     }
 
     @Test

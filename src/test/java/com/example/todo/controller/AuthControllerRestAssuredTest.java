@@ -37,7 +37,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .post("/api/auth/register")
                 .then()
-                .statusCode(200)
+                .statusCode(201)
                 .contentType("application/json")
                 .body("username", equalTo("john_doe_" + timestamp))
                 .body("email", equalTo("john.doe." + timestamp + "@example.com"))
@@ -63,7 +63,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .post("/api/auth/register")
                 .then()
-                .statusCode(200);
+                .statusCode(201);
 
         // Second registration with same username should fail
         given()
@@ -95,7 +95,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .post("/api/auth/register")
                 .then()
-                .statusCode(200);
+                .statusCode(201);
 
         // Login with valid credentials
         String loginBody = String.format("""
@@ -234,7 +234,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .post("/api/auth/register")
                 .then()
-                .statusCode(200);
+                .statusCode(201);
 
         // Try login with wrong password
         given()
@@ -286,7 +286,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .post("/api/auth/register")
                 .then()
-                .statusCode(200)
+                .statusCode(201)
                 .time(lessThan(2000L)); // Less than 2 seconds
 
         // Login should complete within reasonable time

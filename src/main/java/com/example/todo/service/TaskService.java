@@ -52,14 +52,6 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public List<TaskResponse> getTasks(User currentUser) {
-        List<Task> tasks = taskRepository.findByUserOrderByCreatedAtDesc(currentUser);
-        return tasks.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
     public PaginatedTaskResponse getTasksPaginated(User currentUser, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Task> taskPage = taskRepository.findByUser(currentUser, pageable);
@@ -88,19 +80,19 @@ public class TaskService {
             throw new ResourceNotFoundException("Task not found");
         }
 
-        if (request.getTitle() != null) {
+        if (request.isTitleProvided() || request.getTitle() != null) {
             task.setTitle(request.getTitle());
         }
-        if (request.getDescription() != null) {
+        if (request.isDescriptionProvided() || request.getDescription() != null) {
             task.setDescription(request.getDescription());
         }
-        if (request.getPriority() != null) {
+        if (request.isPriorityProvided() || request.getPriority() != null) {
             task.setPriority(request.getPriority());
         }
-        if (request.getStatus() != null) {
+        if (request.isStatusProvided() || request.getStatus() != null) {
             task.setStatus(request.getStatus());
         }
-        if (request.getDueDate() != null) {
+        if (request.isDueDateProvided() || request.getDueDate() != null) {
             task.setDueDate(request.getDueDate());
         }
 

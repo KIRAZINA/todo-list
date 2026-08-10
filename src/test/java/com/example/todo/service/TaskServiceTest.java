@@ -10,7 +10,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -113,20 +112,5 @@ class TaskServiceTest {
         assertThrows(ResourceNotFoundException.class, () ->
                 taskService.deleteTask(1L, intruder));
         verify(taskRepository, never()).delete(any());
-    }
-
-    @Test
-    void shouldGetTasksSortedByCreationDate() {
-        User user = User.builder().id(1L).build();
-        Task t1 = Task.builder().id(1L).title("A").user(user).build();
-        Task t2 = Task.builder().id(2L).title("B").user(user).build();
-
-        when(taskRepository.findByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(t2, t1));
-
-        var result = taskService.getTasks(user);
-
-        assertEquals(2, result.size());
-        assertEquals(2L, result.get(0).getId());
-        assertEquals(1L, result.get(1).getId());
     }
 }

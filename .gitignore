@@ -13,10 +13,6 @@ target/
 *.zip
 *.rar
 
-# Maven Wrapper
-.mvn/wrapper/maven-wrapper.properties
-.mvn/wrapper/maven-wrapper.jar
-
 # ============================
 # IDE & Editor
 # ============================
@@ -81,12 +77,9 @@ replay_pid*
 .env.local
 .env.*.local
 *.properties
+!.mvn/wrapper/maven-wrapper.properties
 application-local.yml
 application-local.yaml
-application-dev.yml
-application-dev.yaml
-application-test.yml
-application-test.yaml
 *.secret
 *.key
 *.pem
@@ -155,3 +148,4 @@ yarn-error.log*
 *.bak
 *.backup
 *.orig
+

@@ -41,7 +41,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .post("/api/auth/register")
                 .then()
-                .statusCode(200)
+                .statusCode(201)
                 .contentType(ContentType.JSON)
                 .body("username", equalTo("flow_test_user_" + timestamp))
                 .body("email", equalTo("flow_" + timestamp + "@example.com"))
@@ -152,7 +152,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .delete("/api/tasks/{id}")
                 .then()
-                .statusCode(200);
+                .statusCode(204);
 
         // Verify deletion
         given()
@@ -209,7 +209,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .post("/api/auth/register")
                 .then()
-                .statusCode(200)
+                .statusCode(201)
                 .contentType(ContentType.JSON)
                 .body("username", notNullValue())
                 .body("email", notNullValue())
@@ -320,7 +320,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .when()
                 .get("/api/tasks/{id}")
                 .then()
-                .statusCode(403);
+                .statusCode(401);
     }
 }
 

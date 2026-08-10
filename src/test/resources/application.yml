@@ -1,7 +1,4 @@
 spring:
-  datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
   h2:
     console:
       enabled: false
@@ -11,5 +8,5 @@ spring:
   flyway:
     enabled: false
 jwt:
-  secret: test-secret-key-1234567890abcdef-1234567890abcdef
+  secret: test-secret-key-at-least-256-bits-long-123456
   expiration-ms: 86400000
