@@ -71,6 +71,26 @@ public class TaskService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public PaginatedTaskResponse getAllTasksPaginated(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Task> taskPage = taskRepository.findAll(pageable);
+
+        List<TaskResponse> content = taskPage.getContent().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+
+        return PaginatedTaskResponse.builder()
+                .content(content)
+                .number(taskPage.getNumber())
+                .size(taskPage.getSize())
+                .totalElements(taskPage.getTotalElements())
+                .totalPages(taskPage.getTotalPages())
+                .first(taskPage.isFirst())
+                .last(taskPage.isLast())
+                .build();
+    }
+
     @Transactional
     public TaskResponse updateTask(Long id, TaskUpdateRequest request, User currentUser) {
         Task task = taskRepository.findById(id)

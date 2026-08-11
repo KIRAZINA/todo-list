@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -97,5 +98,40 @@ class CustomUserDetailsServiceTest {
         assertEquals(1L, customUserDetails.getId());
         assertEquals("test@example.com", customUserDetails.getEmail());
         assertEquals("testuser", customUserDetails.getUsername());
+    }
+
+    @Test
+    void shouldReportAccountLockedWhileLockInFuture() {
+        User user = User.builder()
+                .id(1L)
+                .username("testuser")
+                .password("encodedPassword")
+                .email("test@example.com")
+                .role("USER")
+                .lockedUntil(LocalDateTime.now().plusHours(1))
+                .build();
+
+        // loadUserByUsername no longer throws for a locked account; the lock is
+        // enforced by DaoAuthenticationProvider via isAccountNonLocked().
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+        UserDetails userDetails = userDetailsService.loadUserByUsername("testuser");
+        assertFalse(userDetails.isAccountNonLocked());
+    }
+
+    @Test
+    void shouldAllowLoginWhenLockHasExpired() {
+        User user = User.builder()
+                .id(1L)
+                .username("testuser")
+                .password("encodedPassword")
+                .email("test@example.com")
+                .role("USER")
+                .lockedUntil(LocalDateTime.now().minusHours(1))
+                .build();
+
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername("testuser");
+        assertTrue(userDetails.isAccountNonLocked());
     }
 }

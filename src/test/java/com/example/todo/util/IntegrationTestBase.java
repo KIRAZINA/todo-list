@@ -59,11 +59,11 @@ public abstract class IntegrationTestBase {
     }
 
     protected String registerDefaultUser() throws Exception {
-        return registerAndLogin("testuser", "password123", "test@example.com");
+        return registerAndLogin("testuser", "Password123", "test@example.com");
     }
 
     protected String registerAdminUser() throws Exception {
-        return registerAndLogin("admin", "adminpass123", "admin@example.com");
+        return registerAndLogin("admin", "Adminpass123", "admin@example.com");
     }
 
     protected String[] registerMultipleUsers(int count) throws Exception {
@@ -71,7 +71,7 @@ public abstract class IntegrationTestBase {
         for (int i = 0; i < count; i++) {
             tokens[i] = registerAndLogin(
                     "user" + (i + 1),
-                    "password123",
+                    "Password123",
                     "user" + (i + 1) + "@example.com"
             );
         }

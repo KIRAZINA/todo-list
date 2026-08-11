@@ -1,0 +1,16 @@
+# Place this file at: src/main/resources/application-docker.yml
+# Activated via SPRING_PROFILES_ACTIVE=docker (set in docker-compose.yml).
+# Overrides the H2 datasource from application.yml with Postgres.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:tododb}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME:todo}
+    password: ${DB_PASSWORD:todo}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true

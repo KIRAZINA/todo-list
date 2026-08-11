@@ -1,112 +1,183 @@
 # Todo List Backend API
 
-A production-ready REST API built with Spring Boot 3.5.6 and Java 17, featuring JWT-based authentication, role-based access control, and per-user data isolation.
+A production-ready REST API built with Spring Boot 3.5.6 and Java 17, featuring JWT-based authentication, role-based access control, per-user data isolation, account lockout, token revocation, and IP-based rate limiting.
 
-**Storage note:** the default profile still uses an in-memory H2 database, so data is lost when the process restarts. This keeps Phase 1 lightweight; use a persistent database profile before treating this as production storage.
+## Storage Note
 
-## 🛠 Tech Stack
+The application supports three runtime profiles:
+
+- **default**: in-memory H2 database with Flyway-managed schema validation. Data is lost when the process restarts.
+- **dev**: in-memory H2 with the schema re-created on every start and the H2 web console enabled. Intended for local development.
+- **docker**: persistent PostgreSQL database, used by the Docker Compose setup.
+
+Use the **docker** profile for any environment that requires persistent storage.
+
+## Tech Stack
 
 - **Framework**: Spring Boot 3.5.6
 - **Language**: Java 17 (LTS)
 - **Security**: Spring Security 6.x, JWT (jjwt 0.12.6), BCrypt
-- **Database**: H2 (in-memory), JPA/Hibernate, Flyway
+- **Database**: H2 (in-memory) / PostgreSQL, JPA/Hibernate, Flyway
 - **Documentation**: SpringDoc OpenAPI, Swagger UI
 - **Tools**: Lombok, Jackson, Maven
 - **Testing**: JUnit 5.11.3, Mockito, RestAssured 5.5.0, AssertJ 3.26.3, Spring Boot Test
 
-## ✨ Core Features
+## Core Features
 
-- **JWT Authentication**
-  - Secure registration & login endpoints
-  - 24-hour default token expiration (configurable)
-  - Stateless session management
-  - HS256 algorithm with 256-bit secret key (startup fails fast without `JWT_SECRET`)
+### Authentication and Security
 
-- **Role-Based Access Control (RBAC)**
-  - `USER` and `ADMIN` roles
-  - Fine-grained endpoint protection (`ROLE_USER`/`ROLE_ADMIN` on task endpoints)
-  - 401 Unauthorized (JSON) for missing/invalid credentials, 403 for insufficient rights
+- Registration and login endpoints protected by stateless JWT authentication.
+- Token expiration defaults to 24 hours and is configurable.
+- HS256 signing with a 256-bit secret key; startup fails fast if `JWT_SECRET` is missing or too short.
+- Password policy enforced at registration: 8-100 characters, at least one lowercase letter, one uppercase letter, and one digit.
+- Account lockout after repeated failed logins (5 attempts by default, configurable). While locked, login returns `423 Locked`.
+- Every token carries a unique `jti` claim. `POST /api/auth/logout` blacklists the presented token, so a logged-out token is rejected on subsequent requests.
+- IP-based rate limiting applied to all `/api/auth/**` endpoints. Exceeding the budget returns `429 Too Many Requests`.
+- Optional bootstrap of the first `ADMIN` account at startup via environment variables.
 
-- **Task Management**
-  - Full CRUD operations for todo items (create → 201, delete → 204)
-  - Per-user data isolation via `userId` foreign key
-  - Partial updates via PATCH; explicit `null` clears `description`/`dueDate`
-  - Input validation with Bean Validation annotations
+### Role-Based Access Control
 
-- **Layered Architecture**
-  - Clean separation: Controller → Service → Repository
-  - DTO pattern for request/response objects
-  - Global exception handling with `@ControllerAdvice`
-  - Centralized error responses with proper HTTP status codes
+- Two roles: `USER` and `ADMIN`.
+- `/api/tasks/**` requires authentication and enforces per-user data isolation: each caller only sees and manages their own tasks.
+- `/api/admin/**` requires the `ADMIN` role and exposes user management and cross-user task visibility.
+- Missing or invalid credentials return `401 Unauthorized` (JSON); authenticated callers without sufficient rights receive `403 Forbidden`.
 
-## 🚀 How to Run
+### Admin Console
+
+Explicit endpoints under `/api/admin/**`, gated by the `ADMIN` role:
+
+- List all users (paginated).
+- Change a user's role between `USER` and `ADMIN`.
+- Delete a user; the user's tasks are removed as well.
+- List tasks across all users (paginated).
+
+Admin operations are self-protected: an administrator cannot change their own role or delete their own account (`400 Bad Request`).
+
+### Task Management
+
+- Full CRUD operations for todo items (create returns `201 Created`, delete returns `204 No Content`).
+- Per-user data isolation via the `user_id` foreign key.
+- Partial updates via `PATCH`; explicitly passing `null` clears `description` and `dueDate`.
+- Input validation with Bean Validation annotations.
+
+### Architecture
+
+- Clean separation of concerns: Controller, Service, Repository layers.
+- DTO pattern for all request and response objects.
+- Global exception handling via `@RestControllerAdvice` with centralized JSON error responses and appropriate HTTP status codes.
+- Database schema managed by Flyway migrations.
+
+## How to Run
 
 ### Prerequisites
-- Java 17+ (`java -version`)
-- Maven 3.8+ (`mvn -v`) — or use the bundled Maven wrapper
 
-### Build & Run
+- Java 17 or later.
+- Maven 3.8 or later, or the bundled Maven wrapper (`./mvnw`).
+
+### Build and Run
 
 ```bash
 # Clean and build the project
 ./mvnw clean install
 
-# Run the application (JWT_SECRET is required in the default profile)
+# Run with the default profile (in-memory H2; JWT_SECRET is required)
 JWT_SECRET=<your-256-bit-secret> ./mvnw spring-boot:run
 
 # Run with the dev profile (in-memory H2, H2 console, schema re-created)
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-The application starts on **`http://localhost:8080`** by default.
+The application starts on `http://localhost:8080` by default.
 
-## 🔐 Security & JWT Usage
+### Run with Docker Compose
+
+The repository includes a `Dockerfile` for the backend, a Dockerfile for the React frontend under `frontend/`, and a `docker-compose.yml` that wires together PostgreSQL, the backend, and the frontend.
+
+```bash
+# 1. Create the environment file from the template
+cp .env.example .env
+
+# 2. Generate a real secret and set it in .env
+openssl rand -base64 32
+
+# 3. Start the stack
+docker compose up --build
+```
+
+The backend listens on `http://localhost:8080`, the frontend on `http://localhost:3000`. To bootstrap the first admin account, set `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_EMAIL` in `.env` before the first start.
+
+## Security and JWT Usage
 
 ### Token Configuration
-- **Default Expiration**: 24 hours (86,400,000 ms)
-- **Secret**: 256-bit Base64-encoded key (set via `JWT_SECRET` env var; no default — startup aborts without it)
-- **Algorithm**: HS256
+
+- **Default expiration**: 24 hours (86,400,000 ms).
+- **Secret**: Base64-encoded value that decodes to at least 256 bits (32 bytes). Set via the `JWT_SECRET` environment variable; there is no default and startup aborts without it.
+- **Algorithm**: HS256.
 
 ### Authentication Endpoints
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/register` | User registration (201 Created) |
-| POST | `/api/auth/login` | JWT token generation |
+| POST | `/api/auth/register` | Register a new `USER` account (`201 Created`) |
+| POST | `/api/auth/login` | Authenticate and obtain a JWT |
+| POST | `/api/auth/logout` | Revoke the presented token (`204 No Content`) |
+
+### Admin Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/users` | List all users, paginated (`?page=0&size=20`) |
+| PATCH | `/api/admin/users/{id}/role` | Change a user's role; body `{"role": "USER" or "ADMIN"}` |
+| DELETE | `/api/admin/users/{id}` | Delete a user and their tasks (`204 No Content`) |
+| GET | `/api/admin/tasks` | List all tasks across users, paginated (`?page=0&size=20`) |
 
 ### Secured Endpoints
-All endpoints under `/api/**` (except `/api/auth/**` and `/api/test/health`) require a valid JWT.
 
-**Bearer Token Format:**
+All endpoints under `/api/**` require a valid JWT, with the following exceptions:
+
+- `/api/auth/login` and `/api/auth/register` are public.
+- `/api/auth/logout` requires authentication.
+- `/api/test/health` and `/` are public.
+
+**Bearer token format:**
+
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNzQ0...
 ```
 
-**Role Mapping:**
-- `ROLE_USER` → Standard user operations (own tasks)
-- `ROLE_ADMIN` → User + admin operations (all tasks, user management)
+**Role mapping:**
 
-## 📚 API Documentation
+- `ROLE_USER`: standard user operations on own tasks.
+- `ROLE_ADMIN`: all user operations plus admin endpoints (all tasks, user management).
+
+### Account Lockout
+
+After the configured number of consecutive failed login attempts (default 5), the account is locked for the configured duration (default 15 minutes). While locked, login attempts return `423 Locked`. A successful login clears the failed-attempt counter and any active lock.
+
+### Rate Limiting
+
+The authentication endpoints are throttled per client IP using a fixed-window counter. When the configured request budget is exceeded, requests return `429 Too Many Requests`. The rate limiter is in-memory and per-instance; a shared store is required for multi-instance deployments.
+
+## API Documentation
 
 ### Swagger UI
+
 Open in your browser:
+
 ```
 http://localhost:8080/swagger-ui.html
 ```
 
-The standalone `swagger-ui.html` page is configured to fetch the OpenAPI specification from SpringDoc's default endpoint (`/v3/api-docs`). The UI includes:
-- Interactive API testing
-- Authentication setup via "Authorize" button
-- Request/response examples
-- Schema documentation
-
-**Note**: SpringDoc OpenAPI dependency is already included in `pom.xml`. The `/v3/api-docs` endpoint will be available automatically.
+The standalone `swagger-ui.html` page fetches the OpenAPI specification from SpringDoc's default endpoint (`/v3/api-docs`). The UI provides interactive testing, an "Authorize" button for JWT setup, request and response examples, and schema documentation.
 
 ### Base Path
+
 All API routes are prefixed with `/api`.
 
-### Example Request
+### Example Requests
+
 ```bash
-# Get all tasks (requires auth)
+# Get all tasks (requires authentication)
 curl -X GET http://localhost:8080/api/tasks \
   -H "Authorization: Bearer <your_jwt_token>"
 
@@ -114,20 +185,45 @@ curl -X GET http://localhost:8080/api/tasks \
 curl -X POST http://localhost:8080/api/tasks \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your_jwt_token>" \
-  -d '{"title":"Learn Spring Boot","description":"Complete the tutorial","dueDate":"2024-12-31"}'
+  -d '{"title":"Learn Spring Boot","description":"Complete the tutorial","dueDate":"2026-12-31"}'
+
+# List all users as an administrator
+curl -X GET "http://localhost:8080/api/admin/users?page=0&size=20" \
+  -H "Authorization: Bearer <your_admin_jwt_token>"
+
+# Promote a user to ADMIN
+curl -X PATCH http://localhost:8080/api/admin/users/<id>/role \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your_admin_jwt_token>" \
+  -d '{"role":"ADMIN"}'
 ```
 
-## ⚙️ Environment Variables
+## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `JWT_SECRET` | Base64-encoded 256-bit secret | required in default profile |
+| `JWT_SECRET` | Base64-encoded 256-bit secret | required in all profiles |
 | `JWT_EXPIRATION_MS` | Token lifetime in milliseconds | `86400000` |
-| `H2_CONSOLE_ENABLED` | Enable H2 web console | `false` (dev profile only) |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed origins | `http://localhost:3000,http://localhost:5173` |
+| `LOCKOUT_MAX_ATTEMPTS` | Failed logins before the account is locked | `5` |
+| `LOCKOUT_DURATION_MS` | Lockout duration in milliseconds | `900000` |
+| `RATE_LIMIT_ENABLED` | Enable IP-based rate limiting on auth endpoints | `true` |
+| `RATE_LIMIT_MAX_REQUESTS` | Maximum requests per IP within the window | `10` |
+| `RATE_LIMIT_WINDOW_MS` | Rate-limit window in milliseconds | `60000` |
+| `ADMIN_USERNAME` | Username for the bootstrap admin account | `admin` |
+| `ADMIN_PASSWORD` | Password for the bootstrap admin account; blank disables bootstrap | *(empty)* |
+| `ADMIN_EMAIL` | Email for the bootstrap admin account | `admin@example.com` |
+| `DB_HOST` | PostgreSQL host (docker profile) | `postgres` |
+| `DB_PORT` | PostgreSQL port (docker profile) | `5432` |
+| `DB_NAME` | PostgreSQL database name (docker profile) | `tododb` |
+| `DB_USERNAME` | PostgreSQL user (docker profile) | `todo` |
+| `DB_PASSWORD` | PostgreSQL password (docker profile) | `todo` |
 | `SPRING_PROFILES_ACTIVE` | Active Spring profile | `default` |
 
 ### H2 Console
+
 Enabled only in the `dev` profile. Access the database at:
+
 ```
 http://localhost:8080/h2-console
 JDBC URL: jdbc:h2:mem:todo
@@ -135,61 +231,60 @@ User:     sa
 Password: (leave empty)
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/main/java/com/example/todo/
-├── config/            # Spring configuration classes
-├── security/          # JWT filter, SecurityConfig, UserDetailsService
-├── controller/        # REST endpoints (@RestController)
-├── service/           # Business logic (@Service)
-├── repository/        # Data access layer (@Repository, JPA)
-├── entity/            # JPA entities (Task, User)
-├── dto/               # Request/Response DTOs
-│   ├── request/       # Incoming payload classes
-│   └── response/      # Outgoing payload classes
-└── exception/         # Global exception handler (@ControllerAdvice)
+|-- config/            # Spring configuration classes, admin bootstrap runner
+|-- security/          # JWT filter and provider, rate limit filter, UserDetailsService
+|-- controller/        # REST endpoints (@RestController)
+|-- service/           # Business logic (@Service)
+|-- repository/        # Data access layer (@Repository, JPA)
+|-- entity/            # JPA entities (Task, User, RevokedToken)
+|-- dto/               # Request/Response DTOs
+|   |-- user/          # Registration, login, response, pagination, role update
+|-- exception/         # Custom exceptions and global exception handler
 ```
 
-## 🧪 Testing
+Database migrations live in `src/main/resources/db/migration/` and are applied by Flyway.
+
+## Testing
 
 ### Run All Tests
+
 ```bash
-mvn test
+./mvnw test
 ```
 
 ### Test Coverage
-- **Unit Tests**: Service & Repository layers (JUnit 5, Mockito)
-- **API Tests**: RestAssured-based integration tests (auth, CRUD, authorization, pagination)
-- **Security Tests**: JWT authentication and authorization
+
+- **Unit tests**: Service and security layers (JUnit 5, Mockito).
+- **API tests**: RestAssured-based integration tests covering authentication, CRUD, authorization, pagination, lockout, logout, and admin endpoints.
+- **Security tests**: JWT generation, validation, and revocation.
 
 ### Test Examples
+
 ```bash
 # Run only unit tests
-mvn test -Dtest="*Test"
+./mvnw test -Dtest="*Test"
 
-# Run tests with specific profile
-mvn test -Dspring.profiles.active=test
-
-# Run with coverage report (if JaCoCo configured)
-mvn clean test jacoco:report
+# Run tests with the test profile
+./mvnw test -Dspring.profiles.active=test
 ```
 
 ### Test Structure
+
 - `src/test/java/com/example/todo/`
   - `api/tests/` - End-to-end API flow tests (RestAssured)
   - `controller/` - REST endpoint integration tests
   - `service/` - Business logic tests
-  - `security/` - Authentication/authorization tests
+  - `security/` - Authentication and authorization tests
   - `util/` - Test helpers and base classes
 
-## 🤝 Next Steps / Roadmap
+## Roadmap
 
-- [ ] **PostgreSQL Migration** — Replace H2 with production-ready RDBMS
-- [ ] **Refresh Tokens** — Long-lived refresh + short-lived access tokens
-- [ ] **Audit Logging** — Entity change tracking with `@CreatedDate`, `@LastModifiedDate`
-- [ ] **Dockerization** — Multi-stage Dockerfile + Docker Compose
-- [ ] **CI/CD Pipeline** — GitHub Actions with Maven, JUnit, and security scanning
-- [ ] **Rate Limiting** — API endpoint protection against abuse
-- [ ] **Caching** — Redis integration for performance optimization
-- [ ] **API Versioning** — Support for multiple API versions
+- **Refresh Tokens**: long-lived refresh tokens combined with short-lived access tokens.
+- **Audit Logging**: entity change tracking with creation and modification timestamps.
+- **CI/CD Pipeline**: automated build, test, and security scanning pipeline.
+- **Caching**: Redis-backed caching for performance optimization.
+- **API Versioning**: support for multiple API versions.

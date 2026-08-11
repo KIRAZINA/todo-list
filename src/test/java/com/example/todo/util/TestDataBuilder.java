@@ -67,14 +67,14 @@ public class TestDataBuilder {
     public static UserRegisterRequest.UserRegisterRequestBuilder defaultRegisterRequest() {
         return UserRegisterRequest.builder()
                 .username("newuser")
-                .password("password123")
+                .password("Password123")
                 .email("newuser@example.com");
     }
 
     public static UserLoginRequest.UserLoginRequestBuilder defaultLoginRequest() {
         return UserLoginRequest.builder()
                 .username("testuser")
-                .password("password123");
+                .password("Password123");
     }
 
     public static TaskCreateRequest.TaskCreateRequestBuilder defaultTaskCreateRequest() {

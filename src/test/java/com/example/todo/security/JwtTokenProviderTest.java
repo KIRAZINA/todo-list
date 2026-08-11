@@ -128,6 +128,26 @@ class JwtTokenProviderTest {
     }
 
     @Test
+    void shouldGenerateTokenWithJtiAndExpiration() {
+        com.example.todo.entity.User user = com.example.todo.entity.User.builder()
+                .username("jti_user")
+                .password("password")
+                .email("jti@example.com")
+                .role("USER")
+                .build();
+
+        UserDetails userDetails = new CustomUserDetails(user);
+        Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                userDetails, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+
+        String token = jwtTokenProvider.generateToken(auth);
+
+        assertNotNull(jwtTokenProvider.getJtiFromToken(token), "JWT should carry a jti claim for revocation");
+        assertNotNull(jwtTokenProvider.getExpirationFromToken(token));
+        assertTrue(jwtTokenProvider.getExpirationFromToken(token).after(new Date()));
+    }
+
+    @Test
     void shouldHandleAdminRole() {
         com.example.todo.entity.User user = com.example.todo.entity.User.builder()
                 .username("admin")

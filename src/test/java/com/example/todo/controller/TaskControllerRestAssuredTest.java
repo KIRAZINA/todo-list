@@ -30,8 +30,8 @@ class TaskControllerRestAssuredTest extends RestAssuredTestBase {
 
     @BeforeEach
     void setUp() {
-        user1Token = registerAndLogin("user1", "password123", "user1@example.com");
-        user2Token = registerAndLogin("user2", "password123", "user2@example.com");
+        user1Token = registerAndLogin("user1", "Password123", "user1@example.com");
+        user2Token = registerAndLogin("user2", "Password123", "user2@example.com");
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.example.todo.security;
 
 import com.example.todo.entity.User;
+import com.example.todo.service.TokenRevocationService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,6 +25,9 @@ class JwtAuthenticationFilterTest {
 
     @Mock
     private CustomUserDetailsService userDetailsService;
+
+    @Mock
+    private TokenRevocationService tokenRevocationService;
 
     @InjectMocks
     private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -65,6 +69,22 @@ class JwtAuthenticationFilterTest {
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
         assertEquals("testuser", SecurityContextHolder.getContext().getAuthentication().getName());
         verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void shouldNotAuthenticateWithRevokedToken() throws Exception {
+        String token = "revoked.jwt.token";
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(jwtTokenProvider.validateToken(token)).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken(token)).thenReturn("testuser");
+        when(jwtTokenProvider.getJtiFromToken(token)).thenReturn("revoked-jti");
+        when(tokenRevocationService.isRevoked("revoked-jti")).thenReturn(true);
+
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(filterChain).doFilter(request, response);
+        verify(userDetailsService, never()).loadUserByUsername(anyString());
     }
 
     @Test

@@ -7,9 +7,20 @@ spring:
       enabled: false
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
+    properties:
+      hibernate:
+        generate_statistics: true
   flyway:
-    enabled: false
+    enabled: true
 jwt:
   secret: test-secret-key-1234567890abcdef-1234567890abcdef
   expiration-ms: 86400000
+
+# The API test suite fires many auth requests from one "client" (localhost),
+# so give the rate limiter a budget it will never hit in tests.
+security:
+  rate-limit:
+    enabled: true
+    max-requests: 100000
+    window-ms: 60000

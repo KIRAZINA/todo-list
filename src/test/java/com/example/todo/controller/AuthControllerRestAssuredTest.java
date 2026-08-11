@@ -251,6 +251,87 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
     }
 
     @Test
+    @DisplayName("Should reject registration with weak password (no uppercase/digit mix)")
+    void shouldRejectWeakPassword() {
+        long timestamp = System.currentTimeMillis();
+        // lowercase + digits only — fails the new password policy
+        given()
+                .body(String.format("""
+                    {
+                        "username": "weakpw_user_%d",
+                        "password": "lowercaseanddigits123",
+                        "email": "weak.%d@example.com"
+                    }
+                    """, timestamp, timestamp))
+                .when()
+                .post("/api/auth/register")
+                .then()
+                .statusCode(400);
+
+        // mixed case but no digit
+        given()
+                .body(String.format("""
+                    {
+                        "username": "weakpw_user_%d",
+                        "password": "OnlyLettersHere",
+                        "email": "weak2.%d@example.com"
+                    }
+                    """, timestamp, timestamp))
+                .when()
+                .post("/api/auth/register")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    @DisplayName("Should lock the account after repeated failed logins")
+    void shouldLockAccountAfterRepeatedFailedLogins() {
+        long timestamp = System.currentTimeMillis();
+        String username = "lock_user_" + timestamp;
+
+        given()
+                .body(String.format("""
+                    {
+                        "username": "%s",
+                        "password": "LockPass123!",
+                        "email": "lock.%d@example.com"
+                    }
+                    """, username, timestamp))
+                .when()
+                .post("/api/auth/register")
+                .then()
+                .statusCode(201);
+
+        // 5 consecutive failures lock the account
+        for (int i = 0; i < 5; i++) {
+            given()
+                    .body(String.format("""
+                        {
+                            "username": "%s",
+                            "password": "WrongPass123"
+                        }
+                        """, username))
+                    .when()
+                    .post("/api/auth/login")
+                    .then()
+                    .statusCode(401);
+        }
+
+        // Even a correct password is rejected while the account is locked
+        given()
+                .body(String.format("""
+                    {
+                        "username": "%s",
+                        "password": "LockPass123!"
+                    }
+                    """, username))
+                .when()
+                .post("/api/auth/login")
+                .then()
+                .statusCode(423);
+    }
+
+    @Test
     @DisplayName("Should handle malformed JSON requests gracefully")
     void shouldHandleMalformedJsonRequests() {
         given()

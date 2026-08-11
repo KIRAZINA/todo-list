@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -17,15 +18,20 @@ public class CustomUserDetails implements UserDetails {
     private final String password;
     private final String email;
     private final String role;
+    private final LocalDateTime lockedUntil;
     private final String createdAt;
     private final String updatedAt;
 
+    private final User user;
+
     public CustomUserDetails(User user) {
+        this.user = user;
         this.id = user.getId();
         this.username = user.getUsername();
         this.password = user.getPassword();
         this.email = user.getEmail();
         this.role = user.getRole();
+        this.lockedUntil = user.getLockedUntil();
         this.createdAt = user.getCreatedAt() != null ? user.getCreatedAt().toString() : null;
         this.updatedAt = user.getUpdatedAt() != null ? user.getUpdatedAt().toString() : null;
     }
@@ -52,7 +58,9 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        // DaoAuthenticationProvider's pre-auth check turns this into a
+        // LockedException that surfaces as a clean 423 to the client.
+        return lockedUntil == null || lockedUntil.isBefore(LocalDateTime.now());
     }
 
     @Override
