@@ -1,6 +1,6 @@
-# Todo List Backend API
+# Todo List
 
-A production-ready REST API built with Spring Boot 3.5.6 and Java 17, featuring JWT-based authentication, role-based access control, per-user data isolation, account lockout, token revocation, and IP-based rate limiting.
+A production-ready full-stack application built with a Spring Boot 3.5.6 REST API (Java 17) and a React frontend, featuring JWT-based authentication, role-based access control, per-user data isolation, account lockout, token revocation, and IP-based rate limiting.
 
 ## Storage Note
 
@@ -56,9 +56,14 @@ Admin operations are self-protected: an administrator cannot change their own ro
 ### Task Management
 
 - Full CRUD operations for todo items (create returns `201 Created`, delete returns `204 No Content`).
+- `GET /api/tasks` accepts optional `status` (`TODO`, `IN_PROGRESS`, or `DONE`), `priority` (`LOW`, `MEDIUM`, or `HIGH`), and `overdue` (`true`) query parameters, usable independently or combined. Omitting them returns all of the caller's tasks. An unrecognized value for `status`/`priority` returns `400 Bad Request`.
+- `?overdue=true` returns only the caller's overdue tasks, using **the same rule as the response field**: past due (relative to the server's current date) and not `DONE`. `?overdue=false` or omitting the parameter applies no filter.
 - Per-user data isolation via the `user_id` foreign key.
 - Partial updates via `PATCH`; explicitly passing `null` clears `description` and `dueDate`.
 - Input validation with Bean Validation annotations.
+- Every `TaskResponse` includes an `overdue` boolean. A task is overdue iff it has a `dueDate` **before** the server's current date **and** its status is not `DONE` (a task due today is not overdue, and a completed task is never overdue). Computed server-side in the service layer — pure mapping, no extra query.
+- Pagination with `?page` (0-based) and `?size` (clamped to 1–100) parameters; results are sorted by `createdAt` descending.
+- Filtering is built on JPA Specifications: `TaskRepository` extends `JpaSpecificationExecutor<Task>` and overrides `findAll(Specification<Task>, Pageable)` with an `@EntityGraph(attributePaths = "user")` join so each filter predicate (ownership + optional status/priority) stays a single query with no N+1. The unfiltered path keeps using `findByUser(...)` with its own entity graph.
 
 ### Architecture
 
@@ -181,11 +186,41 @@ All API routes are prefixed with `/api`.
 curl -X GET http://localhost:8080/api/tasks \
   -H "Authorization: Bearer <your_jwt_token>"
 
+# Filter tasks by status (TODO | IN_PROGRESS | DONE)
+curl -X GET "http://localhost:8080/api/tasks?status=DONE" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Filter tasks by priority (LOW | MEDIUM | HIGH)
+curl -X GET "http://localhost:8080/api/tasks?priority=HIGH" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Combine status and priority filters
+curl -X GET "http://localhost:8080/api/tasks?status=TODO&priority=HIGH" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Filter + paginate together
+curl -X GET "http://localhost:8080/api/tasks?status=TODO&page=0&size=20" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
 # Create a new task
 curl -X POST http://localhost:8080/api/tasks \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your_jwt_token>" \
   -d '{"title":"Learn Spring Boot","description":"Complete the tutorial","dueDate":"2026-12-31"}'
+
+# Create a task due well in the past — the response includes "overdue": true
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your_jwt_token>" \
+  -d '{"title":"Overdue task","dueDate":"2026-01-15"}'
+
+# Filter to overdue tasks only
+curl -X GET "http://localhost:8080/api/tasks?overdue=true" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Overdue composes with other filters
+curl -X GET "http://localhost:8080/api/tasks?overdue=true&priority=HIGH" \
+  -H "Authorization: Bearer <your_jwt_token>"
 
 # List all users as an administrator
 curl -X GET "http://localhost:8080/api/admin/users?page=0&size=20" \
@@ -234,7 +269,7 @@ Password: (leave empty)
 ## Project Structure
 
 ```
-src/main/java/com/example/todo/
+src/main/java/com/example/todolist/
 |-- config/            # Spring configuration classes, admin bootstrap runner
 |-- security/          # JWT filter and provider, rate limit filter, UserDetailsService
 |-- controller/        # REST endpoints (@RestController)
@@ -274,7 +309,7 @@ Database migrations live in `src/main/resources/db/migration/` and are applied b
 
 ### Test Structure
 
-- `src/test/java/com/example/todo/`
+- `src/test/java/com/example/todolist/`
   - `api/tests/` - End-to-end API flow tests (RestAssured)
   - `controller/` - REST endpoint integration tests
   - `service/` - Business logic tests

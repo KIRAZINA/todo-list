@@ -287,6 +287,49 @@ main {
   color: var(--text-dim);
 }
 
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.status-filters {
+  display: inline-flex;
+  gap: 6px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.status-filters .filter-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 5px 12px;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.status-filters .filter-btn:hover {
+  color: var(--text);
+}
+
+.status-filters .filter-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.status-filters .filter-btn.overdue-toggle.active {
+  background: var(--danger);
+  color: #fff;
+}
+
 .task-form-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -364,6 +407,23 @@ main {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-dim);
+}
+
+.task-main .task-meta .due-date.overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.task-main .task-meta .overdue-badge {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: var(--danger);
+  padding: 1px 6px;
+  border-radius: 999px;
 }
 
 .task-main .task-desc {

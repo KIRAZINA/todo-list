@@ -84,7 +84,13 @@ export const api = {
 
   health: () => request("/test/health", { auth: false }),
 
-  listTasks: (page = 0, size = 20) => request(`/tasks?page=${page}&size=${size}`),
+  listTasks: (page = 0, size = 20, status, priority, overdue) => {
+    const params = new URLSearchParams({ page, size });
+    if (status) params.append("status", status);
+    if (priority) params.append("priority", priority);
+    if (overdue) params.append("overdue", "true");
+    return request(`/tasks?${params}`);
+  },
 
   createTask: (task) => request("/tasks", { method: "POST", body: task }),
 

@@ -6,7 +6,7 @@
 #     .env                      <- your real JWT_SECRET (see .env.example)
 #     Dockerfile                <- existing Spring Boot backend Dockerfile
 #     src/main/resources/application-docker.yml
-#     frontend/                 <- the todo-frontend React app
+#     frontend/                 <- the todo-list-frontend React app
 
 services:
   postgres:

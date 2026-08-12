@@ -3,6 +3,8 @@ import { api } from "../api";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
 const STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
+const STATUS_FILTERS = [{ label: "All", value: null }, ...STATUSES.map((s) => ({ label: s, value: s }))];
+const PRIORITY_FILTERS = [{ label: "All", value: null }, ...PRIORITIES.map((p) => ({ label: p, value: p }))];
 const PAGE_SIZE = 10;
 
 function nextStatus(current) {
@@ -10,8 +12,20 @@ function nextStatus(current) {
   return STATUSES[(i + 1) % STATUSES.length];
 }
 
+function formatDueDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default function TaskBoard() {
   const [page, setPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [priorityFilter, setPriorityFilter] = useState(null);
+  const [overdueFilter, setOverdueFilter] = useState(false);
   const [data, setData] = useState(null); // PaginatedTaskResponse
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,11 +36,11 @@ export default function TaskBoard() {
   const [dueDate, setDueDate] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const load = useCallback(async (p) => {
+  const load = useCallback(async (p, status, prio, overdue) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.listTasks(p, PAGE_SIZE);
+      const res = await api.listTasks(p, PAGE_SIZE, status, prio, overdue);
       setData(res);
     } catch (err) {
       setError(err.message);
@@ -36,8 +50,23 @@ export default function TaskBoard() {
   }, []);
 
   useEffect(() => {
-    load(page);
-  }, [page, load]);
+    load(page, statusFilter, priorityFilter, overdueFilter);
+  }, [page, statusFilter, priorityFilter, overdueFilter, load]);
+
+  function handleStatusFilterChange(value) {
+    setPage(0);
+    setStatusFilter(value);
+  }
+
+  function handlePriorityFilterChange(value) {
+    setPage(0);
+    setPriorityFilter(value);
+  }
+
+  function handleOverdueToggle() {
+    setPage(0);
+    setOverdueFilter((v) => !v);
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -56,7 +85,7 @@ export default function TaskBoard() {
       setPriority("MEDIUM");
       setDueDate("");
       if (page === 0) {
-        load(0);
+        load(0, statusFilter, priorityFilter, overdueFilter);
       } else {
         setPage(0);
       }
@@ -78,7 +107,7 @@ export default function TaskBoard() {
       await api.updateTask(task.id, { status: updated });
     } catch (err) {
       setError(err.message);
-      load(page);
+      load(page, statusFilter, priorityFilter, overdueFilter);
     }
   }
 
@@ -87,7 +116,7 @@ export default function TaskBoard() {
     setError(null);
     try {
       await api.deleteTask(task.id);
-      load(page);
+      load(page, statusFilter, priorityFilter, overdueFilter);
     } catch (err) {
       setError(err.message);
     }
@@ -151,6 +180,40 @@ export default function TaskBoard() {
         {data && <span className="count">{data.totalElements} total</span>}
       </div>
 
+      <div className="filters-row">
+        <div className="status-filters" role="group" aria-label="Filter tasks by status">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.label}
+              className={`filter-btn${statusFilter === f.value ? " active" : ""}`}
+              onClick={() => handleStatusFilterChange(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="status-filters" role="group" aria-label="Filter tasks by priority">
+          {PRIORITY_FILTERS.map((f) => (
+            <button
+              key={f.label}
+              className={`filter-btn${priorityFilter === f.value ? " active" : ""}`}
+              onClick={() => handlePriorityFilterChange(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="status-filters" role="group" aria-label="Filter overdue tasks">
+          <button
+            className={`filter-btn overdue-toggle${overdueFilter ? " active" : ""}`}
+            onClick={handleOverdueToggle}
+            aria-pressed={overdueFilter}
+          >
+            Overdue
+          </button>
+        </div>
+      </div>
+
       {loading && !data ? (
         <div className="empty-state">
           <div className="glyph">···</div>
@@ -170,7 +233,15 @@ export default function TaskBoard() {
                 <div className="task-title">{task.title}</div>
                 <div className="task-meta">
                   #{task.id}
-                  {task.dueDate ? ` · due ${task.dueDate}` : ""}
+                  {task.dueDate ? (
+                    <>
+                      {" "}· due{" "}
+                      <span className={`due-date${task.overdue ? " overdue" : ""}`}>
+                        {formatDueDate(task.dueDate)}
+                      </span>
+                      {task.overdue && <span className="overdue-badge">Overdue</span>}
+                    </>
+                  ) : null}
                 </div>
                 {task.description && <div className="task-desc">{task.description}</div>}
               </div>

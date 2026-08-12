@@ -55,7 +55,7 @@
       "issues": 7,
       "storyPoints": 37,
       "properties": {
-        "appName": "todolist_backend",
+        "appName": "todo-list",
         "jdkVersion": "17",
         "frameworks": [
           "Spring Boot",
