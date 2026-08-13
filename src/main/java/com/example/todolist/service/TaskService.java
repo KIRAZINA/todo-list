@@ -70,7 +70,7 @@ public class TaskService {
             taskPage = taskRepository.findByUser(currentUser, pageable);
         } else {
             taskPage = taskRepository.findAll(
-                    taskFilter(currentUser, status, priority, overdueActive, dueBefore, dueAfter), pageable);
+                    buildTaskSpec(currentUser, status, priority, overdueActive, dueBefore, dueAfter), pageable);
         }
 
         List<TaskResponse> content = taskPage.getContent().stream()
@@ -89,9 +89,20 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public PaginatedTaskResponse getAllTasksPaginated(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Task> taskPage = taskRepository.findAll(pageable);
+    public PaginatedTaskResponse getAllTasksPaginated(int page, int size,
+                                                      Task.Status status, Task.Priority priority, Boolean overdue,
+                                                      LocalDate dueBefore, LocalDate dueAfter,
+                                                      TaskSortField sortField, String direction) {
+        boolean overdueActive = Boolean.TRUE.equals(overdue);
+        TaskSortField effectiveSortField = sortField != null ? sortField : TaskSortField.createdAt;
+        String effectiveDirection = direction != null ? direction : "desc";
+        Sort.Direction sortDirection = Sort.Direction.fromString(effectiveDirection);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, effectiveSortField.getEntityProperty()));
+        // Owner is null: the spec omits the ownership predicate, so every
+        // user's tasks are matched. The repository's @EntityGraph keeps the
+        // owner eager-loaded for ownerUsername mapping.
+        Page<Task> taskPage = taskRepository.findAll(
+                buildTaskSpec(null, status, priority, overdueActive, dueBefore, dueAfter), pageable);
 
         List<TaskResponse> content = taskPage.getContent().stream()
                 .map(this::toResponse)
@@ -148,11 +159,16 @@ public class TaskService {
         taskRepository.delete(task);
     }
 
-    private Specification<Task> taskFilter(User currentUser, Task.Status status, Task.Priority priority,
-                                           boolean overdueActive, LocalDate dueBefore, LocalDate dueAfter) {
+    private Specification<Task> buildTaskSpec(User owner, Task.Status status, Task.Priority priority,
+                                              boolean overdueActive, LocalDate dueBefore, LocalDate dueAfter) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("user").get("id"), currentUser.getId()));
+            // A non-null owner restricts the result to that owner's tasks;
+            // a null owner (admin cross-user listing) omits the predicate,
+            // matching every user's tasks.
+            if (owner != null) {
+                predicates.add(cb.equal(root.get("user").get("id"), owner.getId()));
+            }
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
             }
@@ -183,6 +199,7 @@ public class TaskService {
                 .dueDate(task.getDueDate())
                 .overdue(isOverdue(task))
                 .userId(task.getUser().getId())
+                .ownerUsername(task.getUser().getUsername())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
                 .build();

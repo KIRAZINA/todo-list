@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api, getToken, setToken, decodeJwtPayload } from "./api";
 import AuthScreen from "./components/AuthScreen";
 import TaskBoard from "./components/TaskBoard";
+import AdminPanel from "./components/AdminPanel";
+import ProfilePanel from "./components/ProfilePanel";
 import StatusBar from "./components/StatusBar";
 
 function sessionFromToken() {
@@ -17,12 +19,18 @@ function sessionFromToken() {
 
 export default function App() {
   const [session, setSession] = useState(sessionFromToken);
+  const [view, setView] = useState("tasks"); // "tasks" | "admin" | "profile"
 
   useEffect(() => {
-    const onAuthExpired = () => setSession(null);
+    const onAuthExpired = () => {
+      setSession(null);
+      setView("tasks");
+    };
     window.addEventListener("todo:auth-expired", onAuthExpired);
     return () => window.removeEventListener("todo:auth-expired", onAuthExpired);
   }, []);
+
+  const isAdmin = session?.role === "ADMIN";
 
   function handleLogout() {
     // Best-effort server-side revocation (invalidates the JWT), then always
@@ -30,6 +38,7 @@ export default function App() {
     api.logout().catch(() => {});
     setToken(null);
     setSession(null);
+    setView("tasks");
   }
 
   return (
@@ -38,6 +47,30 @@ export default function App() {
         <span className="brand">
           <strong>todo</strong> // api console
         </span>
+        {session && (
+          <nav className="topbar-nav" aria-label="Primary">
+            <button
+              className={`nav-btn${view === "tasks" ? " active" : ""}`}
+              onClick={() => setView("tasks")}
+            >
+              Tasks
+            </button>
+            <button
+              className={`nav-btn${view === "profile" ? " active" : ""}`}
+              onClick={() => setView("profile")}
+            >
+              Profile
+            </button>
+            {isAdmin && (
+              <button
+                className={`nav-btn${view === "admin" ? " active" : ""}`}
+                onClick={() => setView("admin")}
+              >
+                Admin
+              </button>
+            )}
+          </nav>
+        )}
         {session && (
           <div className="session">
             <span>{session.username}</span>
@@ -51,7 +84,13 @@ export default function App() {
 
       {session ? (
         <main>
-          <TaskBoard />
+          {view === "admin" ? (
+            <AdminPanel session={session} />
+          ) : view === "profile" ? (
+            <ProfilePanel />
+          ) : (
+            <TaskBoard />
+          )}
         </main>
       ) : (
         <AuthScreen onAuthenticated={() => setSession(sessionFromToken())} />

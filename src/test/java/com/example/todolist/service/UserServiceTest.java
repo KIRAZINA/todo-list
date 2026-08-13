@@ -1,5 +1,7 @@
 package com.example.todolist.service;
 
+import com.example.todolist.dto.user.EmailUpdateRequest;
+import com.example.todolist.dto.user.PasswordChangeRequest;
 import com.example.todolist.dto.user.UserRegisterRequest;
 import com.example.todolist.entity.User;
 import com.example.todolist.exception.IllegalAdminOperationException;
@@ -219,5 +221,83 @@ class UserServiceTest {
         userService.updateUserRole(2L, "ADMIN", currentAdmin);
 
         verify(userRepository, never()).countByRole(anyString());
+    }
+
+    @Test
+    void shouldReturnCurrentUserProfile() {
+        User user = User.builder()
+                .id(1L)
+                .username("john")
+                .email("john@example.com")
+                .role("USER")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        var response = userService.getCurrentUserProfile(user);
+
+        assertEquals(1L, response.getId());
+        assertEquals("john", response.getUsername());
+        assertEquals("john@example.com", response.getEmail());
+        assertEquals("USER", response.getRole());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldChangePasswordAndSaveNewHash() {
+        User user = User.builder().id(1L).username("john").password("oldHash").build();
+        when(passwordEncoder.matches("OldPass123", "oldHash")).thenReturn(true);
+        when(passwordEncoder.encode("NewPass456")).thenReturn("newHash");
+
+        userService.changePassword(user, new PasswordChangeRequest("OldPass123", "NewPass456"));
+
+        assertEquals("newHash", user.getPassword());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void shouldRejectWrongCurrentPassword() {
+        User user = User.builder().id(1L).username("john").password("oldHash").build();
+        when(passwordEncoder.matches("WrongPass123", "oldHash")).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                userService.changePassword(user, new PasswordChangeRequest("WrongPass123", "NewPass456")));
+
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldUpdateEmailSuccessfully() {
+        User user = User.builder().id(1L).username("john").email("old@example.com").build();
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(userRepository.save(user)).thenReturn(user);
+
+        var response = userService.updateEmail(user, new EmailUpdateRequest("new@example.com"));
+
+        assertEquals("new@example.com", response.getEmail());
+        assertEquals("new@example.com", user.getEmail());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void shouldRejectDuplicateEmailOnUpdate() {
+        User user = User.builder().id(1L).username("john").email("old@example.com").build();
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(true);
+
+        assertThrows(ResourceAlreadyExistsException.class, () ->
+                userService.updateEmail(user, new EmailUpdateRequest("new@example.com")));
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldNoOpWhenEmailUnchanged() {
+        User user = User.builder().id(1L).username("john").email("same@example.com").build();
+
+        var response = userService.updateEmail(user, new EmailUpdateRequest("same@example.com"));
+
+        assertEquals("same@example.com", response.getEmail());
+        verify(userRepository, never()).existsByEmail(anyString());
+        verify(userRepository, never()).save(any());
     }
 }

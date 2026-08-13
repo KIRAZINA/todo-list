@@ -12,10 +12,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -262,6 +270,247 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .statusCode(400);
 
         assertTrue(userRepository.findById(admin.getId()).isPresent());
+    }
+
+    @Test
+    @DisplayName("Admin can filter tasks across users by status and priority")
+    void adminCanFilterTasksAcrossUsers() {
+        long ts = System.currentTimeMillis();
+        User alice = saveUser("filter_alice");
+        User bob = saveUser("filter_bob");
+
+        Task a1 = saveTask(alice, "alpha-done-" + ts, Task.Priority.LOW, Task.Status.DONE, null);
+        Task a2 = saveTask(alice, "alpha-todo-" + ts, Task.Priority.HIGH, Task.Status.TODO, null);
+        Task b1 = saveTask(bob, "beta-done-" + ts, Task.Priority.MEDIUM, Task.Status.DONE, null);
+        Task b2 = saveTask(bob, "beta-todo-" + ts, Task.Priority.LOW, Task.Status.TODO, null);
+
+        String adminToken = createAdmin("filter_admin");
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("status", "DONE")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(200)
+                .body("content.title", hasItems(a1.getTitle(), b1.getTitle()))
+                .body("content.title", not(hasItem(a2.getTitle())))
+                .body("content.title", not(hasItem(b2.getTitle())));
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("priority", "LOW")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(200)
+                .body("content.title", hasItems(a1.getTitle(), b2.getTitle()))
+                .body("content.title", not(hasItem(a2.getTitle())))
+                .body("content.title", not(hasItem(b1.getTitle())));
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("status", "DONE")
+                .queryParam("priority", "MEDIUM")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(200)
+                .body("content.title", hasItems(b1.getTitle()))
+                .body("content.title", not(hasItem(a1.getTitle())))
+                .body("content.title", not(hasItem(a2.getTitle())))
+                .body("content.title", not(hasItem(b2.getTitle())));
+    }
+
+    @Test
+    @DisplayName("Admin overdue filter applies across users and ignores completed tasks")
+    void adminCanFilterOverdueTasksAcrossUsers() {
+        long ts = System.currentTimeMillis();
+        User carol = saveUser("filter_carol");
+        User dave = saveUser("filter_dave");
+        User eve = saveUser("filter_eve");
+
+        Task past = saveTask(carol, "carol-past-" + ts, Task.Priority.LOW, Task.Status.TODO,
+                LocalDate.now().minusDays(1));
+        Task future = saveTask(dave, "dave-future-" + ts, Task.Priority.LOW, Task.Status.TODO,
+                LocalDate.now().plusDays(1));
+        Task donePast = saveTask(eve, "eve-done-past-" + ts, Task.Priority.LOW, Task.Status.DONE,
+                LocalDate.now().minusDays(1));
+
+        String adminToken = createAdmin("filter_admin");
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("overdue", "true")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(200)
+                .body("content.title", hasItems(past.getTitle()))
+                .body("content.title", not(hasItem(future.getTitle())))
+                .body("content.title", not(hasItem(donePast.getTitle())));
+    }
+
+    @Test
+    @DisplayName("Admin can filter tasks across users by due date range")
+    void adminCanFilterTasksByDueDateRange() {
+        long ts = System.currentTimeMillis();
+        User frank = saveUser("filter_frank");
+        User grace = saveUser("filter_grace");
+        User heidi = saveUser("filter_heidi");
+
+        Task past = saveTask(frank, "frank-past-" + ts, Task.Priority.LOW, Task.Status.TODO,
+                LocalDate.now().minusDays(1));
+        Task today = saveTask(frank, "frank-today-" + ts, Task.Priority.LOW, Task.Status.TODO, LocalDate.now());
+        Task tomorrow = saveTask(grace, "grace-tomorrow-" + ts, Task.Priority.LOW, Task.Status.TODO,
+                LocalDate.now().plusDays(1));
+        Task far = saveTask(heidi, "heidi-far-" + ts, Task.Priority.LOW, Task.Status.TODO,
+                LocalDate.now().plusDays(10));
+
+        String adminToken = createAdmin("filter_admin");
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("dueBefore", LocalDate.now().plusDays(1).toString())
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(200)
+                .body("content.title", hasItems(today.getTitle(), tomorrow.getTitle()))
+                .body("content.title", not(hasItem(far.getTitle())));
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("dueAfter", LocalDate.now().toString())
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(200)
+                .body("content.title", hasItems(today.getTitle(), tomorrow.getTitle(), far.getTitle()))
+                .body("content.title", not(hasItem(past.getTitle())));
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("dueAfter", LocalDate.now().toString())
+                .queryParam("dueBefore", LocalDate.now().plusDays(1).toString())
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(200)
+                .body("content.title", hasItems(today.getTitle(), tomorrow.getTitle()))
+                .body("content.title", not(hasItem(past.getTitle())))
+                .body("content.title", not(hasItem(far.getTitle())));
+    }
+
+    @Test
+    @DisplayName("Admin can sort tasks across users and sees ownerUsername on each task")
+    void adminCanSortAndSeeOwnerUsername() {
+        long ts = System.currentTimeMillis();
+        User ivan = saveUser("sort_ivan");
+        User judy = saveUser("sort_judy");
+
+        Task sortA = saveTask(ivan, "sort-a-" + ts, Task.Priority.LOW, Task.Status.TODO, null);
+        Task sortB = saveTask(judy, "sort-b-" + ts, Task.Priority.LOW, Task.Status.TODO, null);
+        Task sortC = saveTask(ivan, "sort-c-" + ts, Task.Priority.LOW, Task.Status.TODO, null);
+
+        String adminToken = createAdmin("sort_admin");
+
+        List<String> titles = given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("sortBy", "title")
+                .queryParam("direction", "asc")
+                .queryParam("size", "100")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(200)
+                .extract()
+                .jsonPath()
+                .getList("content.title", String.class);
+
+        List<String> mine = titles.stream().filter(t -> t.endsWith("-" + ts)).toList();
+        assertEquals(List.of(sortA.getTitle(), sortB.getTitle(), sortC.getTitle()), mine);
+
+        // Each task exposes the correct ownerUsername (maps title -> owner).
+        List<Map<String, Object>> tasks = given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("sortBy", "title")
+                .queryParam("direction", "asc")
+                .queryParam("size", "100")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(200)
+                .extract()
+                .jsonPath()
+                .getList("content");
+
+        for (Map<String, Object> task : tasks) {
+            String title = (String) task.get("title");
+            if (sortA.getTitle().equals(title) || sortC.getTitle().equals(title)) {
+                assertEquals(ivan.getUsername(), task.get("ownerUsername"));
+            } else if (sortB.getTitle().equals(title)) {
+                assertEquals(judy.getUsername(), task.get("ownerUsername"));
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Admin task filters reject invalid values")
+    void adminTaskFiltersRejectInvalidValues() {
+        String adminToken = createAdmin("strict_admin");
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("sortBy", "bogus")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(400);
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("direction", "bogus")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(400);
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("dueBefore", "notadate")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(400);
+
+        given()
+                .header("Authorization", bearer(adminToken))
+                .queryParam("priority", "bogus")
+                .when()
+                .get("/api/admin/tasks")
+                .then()
+                .statusCode(400);
+    }
+
+    private User saveUser(String baseUsername) {
+        long timestamp = System.currentTimeMillis();
+        return userRepository.save(User.builder()
+                .username(baseUsername + "_" + timestamp)
+                .password(passwordEncoder.encode("Pass1234!"))
+                .email(baseUsername + "_" + timestamp + "@example.com")
+                .role("USER")
+                .build());
+    }
+
+    private Task saveTask(User owner, String title, Task.Priority priority, Task.Status status, LocalDate dueDate) {
+        return taskRepository.save(Task.builder()
+                .title(title)
+                .priority(priority)
+                .status(status)
+                .dueDate(dueDate)
+                .user(owner)
+                .build());
     }
 
     private String login(String username, String password) {

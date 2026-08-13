@@ -4,13 +4,16 @@ import com.example.todolist.dto.task.PaginatedTaskResponse;
 import com.example.todolist.dto.user.PaginatedUserResponse;
 import com.example.todolist.dto.user.RoleUpdateRequest;
 import com.example.todolist.dto.user.UserResponse;
+import com.example.todolist.entity.Task;
 import com.example.todolist.entity.User;
 import com.example.todolist.exception.UserNotAuthenticatedException;
 import com.example.todolist.security.CurrentUserService;
 import com.example.todolist.service.TaskService;
+import com.example.todolist.service.TaskSortField;
 import com.example.todolist.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 /**
  * ADMIN-only endpoints: user management and visibility into every task
@@ -46,9 +51,18 @@ public class AdminController {
     @GetMapping("/tasks")
     public PaginatedTaskResponse getAllTasks(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Task.Status status,
+            @RequestParam(required = false) Task.Priority priority,
+            @RequestParam(required = false) Boolean overdue,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueBefore,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueAfter,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
         int normalizedSize = Math.max(1, Math.min(size, 100));
-        return taskService.getAllTasksPaginated(page, normalizedSize);
+        TaskSortField sortField = TaskSortField.fromApiValue(sortBy);
+        return taskService.getAllTasksPaginated(
+                page, normalizedSize, status, priority, overdue, dueBefore, dueAfter, sortField, direction);
     }
 
     @PatchMapping("/users/{id}/role")

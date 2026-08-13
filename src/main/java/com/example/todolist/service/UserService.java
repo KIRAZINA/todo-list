@@ -1,6 +1,8 @@
 package com.example.todolist.service;
 
+import com.example.todolist.dto.user.EmailUpdateRequest;
 import com.example.todolist.dto.user.PaginatedUserResponse;
+import com.example.todolist.dto.user.PasswordChangeRequest;
 import com.example.todolist.dto.user.UserRegisterRequest;
 import com.example.todolist.dto.user.UserResponse;
 import com.example.todolist.entity.User;
@@ -155,6 +157,36 @@ public class UserService {
         if (adminCount <= 1) {
             throw new IllegalAdminOperationException("Cannot demote or delete the last remaining ADMIN");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getCurrentUserProfile(User user) {
+        return toResponse(user);
+    }
+
+    @Transactional
+    public UserResponse updateEmail(User user, EmailUpdateRequest request) {
+        String newEmail = request.getEmail();
+        if (user.getEmail().equals(newEmail)) {
+            return toResponse(user);
+        }
+        if (userRepository.existsByEmail(newEmail)) {
+            throw new ResourceAlreadyExistsException("Email already exists");
+        }
+        user.setEmail(newEmail);
+        user = userRepository.save(user);
+        log.info("User '{}' updated email", user.getUsername());
+        return toResponse(user);
+    }
+
+    @Transactional
+    public void changePassword(User user, PasswordChangeRequest request) {
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+        log.info("User '{}' changed password", user.getUsername());
     }
 
     private UserResponse toResponse(User user) {

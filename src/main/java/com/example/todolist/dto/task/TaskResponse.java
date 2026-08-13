@@ -21,6 +21,7 @@ public class TaskResponse {
     private LocalDate dueDate;
     private boolean overdue;
     private Long userId;
+    private String ownerUsername;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

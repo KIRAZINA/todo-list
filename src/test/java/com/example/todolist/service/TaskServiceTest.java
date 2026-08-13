@@ -17,6 +17,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -360,5 +366,70 @@ class TaskServiceTest {
         var response = taskService.createTask(request, user);
 
         assertFalse(response.isOverdue());
+    }
+
+    @Test
+    void toResponseSetsOwnerUsername() {
+        User user = User.builder().id(1L).username("alice").build();
+        var request = com.example.todolist.dto.task.TaskCreateRequest.builder()
+                .title("Owned task")
+                .build();
+        when(taskRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var response = taskService.createTask(request, user);
+
+        assertEquals("alice", response.getOwnerUsername());
+    }
+
+    @Test
+    void adminGetAllTasksNoFiltersUsesEmptySpecMatchingAll() {
+        Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
+
+        taskService.getAllTasksPaginated(0, 20, null, null, null, null, null, TaskSortField.createdAt, "desc");
+
+        ArgumentCaptor<Specification<Task>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(taskRepository).findAll(captor.capture(), any(Pageable.class));
+        Specification<Task> spec = captor.getValue();
+
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        Root<Task> root = mock(Root.class);
+        when(cb.and(any(Predicate[].class))).thenReturn(mock(Predicate.class));
+
+        spec.toPredicate(root, query, cb);
+
+        // An empty predicate list yields a conjunction that matches every row.
+        ArgumentCaptor<Predicate[]> predCaptor = ArgumentCaptor.forClass(Predicate[].class);
+        verify(cb).and(predCaptor.capture());
+        assertEquals(0, predCaptor.getValue().length);
+    }
+
+    @Test
+    void adminGetAllTasksFilterCarriesNoOwnershipPredicate() {
+        Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
+
+        taskService.getAllTasksPaginated(0, 20, Task.Status.DONE, null, null, null, null,
+                TaskSortField.createdAt, "desc");
+
+        ArgumentCaptor<Specification<Task>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(taskRepository).findAll(captor.capture(), any(Pageable.class));
+        Specification<Task> spec = captor.getValue();
+
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        Root<Task> root = mock(Root.class);
+        Path<Object> statusPath = mock(Path.class);
+
+        when(root.get("status")).thenReturn(statusPath);
+        when(cb.equal(statusPath, Task.Status.DONE)).thenReturn(mock(Predicate.class));
+        when(cb.and(any(Predicate[].class))).thenReturn(mock(Predicate.class));
+
+        spec.toPredicate(root, query, cb);
+
+        // The status filter is applied, but no user-id ownership predicate is added.
+        verify(cb).equal(statusPath, Task.Status.DONE);
+        verify(root, never()).get("user");
     }
 }

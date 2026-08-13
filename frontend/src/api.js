@@ -91,6 +91,13 @@ export const api = {
 
   health: () => request("/test/health", { auth: false }),
 
+  getMe: () => request("/users/me"),
+
+  updateEmail: (email) => request("/users/me", { method: "PATCH", body: { email } }),
+
+  changePassword: (currentPassword, newPassword) =>
+    request("/users/me/password", { method: "PUT", body: { currentPassword, newPassword } }),
+
   listTasks: (page = 0, size = 20, status, priority, overdue, dueBefore, dueAfter, sortBy, direction) => {
     const params = new URLSearchParams({ page, size });
     if (status) params.append("status", status);
@@ -108,4 +115,24 @@ export const api = {
   updateTask: (id, patch) => request(`/tasks/${id}`, { method: "PATCH", body: patch }),
 
   deleteTask: (id) => request(`/tasks/${id}`, { method: "DELETE" }),
+
+  listUsers: (page = 0, size = 20) =>
+    request(`/admin/users?${new URLSearchParams({ page, size })}`),
+
+  listAllTasks: (page = 0, size = 20, status, priority, overdue, dueBefore, dueAfter, sortBy, direction) => {
+    const params = new URLSearchParams({ page, size });
+    if (status) params.append("status", status);
+    if (priority) params.append("priority", priority);
+    if (overdue) params.append("overdue", "true");
+    if (dueBefore) params.append("dueBefore", dueBefore);
+    if (dueAfter) params.append("dueAfter", dueAfter);
+    if (sortBy) params.append("sortBy", sortBy);
+    if (direction) params.append("direction", direction);
+    return request(`/admin/tasks?${params}`);
+  },
+
+  updateUserRole: (userId, role) =>
+    request(`/admin/users/${userId}/role`, { method: "PATCH", body: { role } }),
+
+  deleteUser: (userId) => request(`/admin/users/${userId}`, { method: "DELETE" }),
 };
