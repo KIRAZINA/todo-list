@@ -330,6 +330,92 @@ main {
   color: #fff;
 }
 
+.date-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.date-filters label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.date-filters input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.date-filters input:focus {
+  border-color: var(--accent);
+}
+
+.sort-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sort-filters label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.sort-filters select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.sort-filters select:focus {
+  border-color: var(--accent);
+}
+
+.sort-filters .filter-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.sort-filters .filter-btn:hover {
+  color: var(--text);
+}
+
+.sort-filters .filter-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .task-form-card {
   background: var(--surface);
   border: 1px solid var(--border);

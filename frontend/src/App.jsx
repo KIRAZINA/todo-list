@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, getToken, setToken, decodeJwtPayload } from "./api";
 import AuthScreen from "./components/AuthScreen";
 import TaskBoard from "./components/TaskBoard";
@@ -17,6 +17,12 @@ function sessionFromToken() {
 
 export default function App() {
   const [session, setSession] = useState(sessionFromToken);
+
+  useEffect(() => {
+    const onAuthExpired = () => setSession(null);
+    window.addEventListener("todo:auth-expired", onAuthExpired);
+    return () => window.removeEventListener("todo:auth-expired", onAuthExpired);
+  }, []);
 
   function handleLogout() {
     // Best-effort server-side revocation (invalidates the JWT), then always

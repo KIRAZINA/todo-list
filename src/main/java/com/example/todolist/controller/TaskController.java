@@ -9,8 +9,10 @@ import com.example.todolist.entity.User;
 import com.example.todolist.exception.UserNotAuthenticatedException;
 import com.example.todolist.security.CurrentUserService;
 import com.example.todolist.service.TaskService;
+import com.example.todolist.service.TaskSortField;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -53,9 +57,16 @@ public class TaskController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Task.Status status,
             @RequestParam(required = false) Task.Priority priority,
-            @RequestParam(required = false) Boolean overdue) {
+            @RequestParam(required = false) Boolean overdue,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueBefore,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dueAfter,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
         int normalizedSize = Math.max(1, Math.min(size, 100));
-        return taskService.getTasksPaginated(getCurrentUser(), page, normalizedSize, status, priority, overdue);
+        TaskSortField sortField = TaskSortField.fromApiValue(sortBy);
+        return taskService.getTasksPaginated(
+                getCurrentUser(), page, normalizedSize, status, priority, overdue, dueBefore, dueAfter,
+                sortField, direction);
     }
 
     @PatchMapping("/{id}")

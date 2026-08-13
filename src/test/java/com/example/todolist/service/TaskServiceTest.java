@@ -6,6 +6,7 @@ import com.example.todolist.exception.ResourceNotFoundException;
 import com.example.todolist.repository.TaskRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
@@ -127,7 +129,7 @@ class TaskServiceTest {
         Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
         when(taskRepository.findByUser(eq(user), any(Pageable.class))).thenReturn(emptyPage);
 
-        taskService.getTasksPaginated(user, 0, 20, null, null, null);
+        taskService.getTasksPaginated(user, 0, 20, null, null, null, null, null, null, null);
 
         verify(taskRepository).findByUser(eq(user), any(Pageable.class));
         verify(taskRepository, never()).findAll(any(Specification.class), any(Pageable.class));
@@ -139,7 +141,7 @@ class TaskServiceTest {
         Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
         when(taskRepository.findByUser(eq(user), any(Pageable.class))).thenReturn(emptyPage);
 
-        taskService.getTasksPaginated(user, 0, 20, null, null, Boolean.FALSE);
+        taskService.getTasksPaginated(user, 0, 20, null, null, Boolean.FALSE, null, null, null, null);
 
         verify(taskRepository).findByUser(eq(user), any(Pageable.class));
         verify(taskRepository, never()).findAll(any(Specification.class), any(Pageable.class));
@@ -151,7 +153,7 @@ class TaskServiceTest {
         Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
         when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
 
-        taskService.getTasksPaginated(user, 0, 20, null, null, Boolean.TRUE);
+        taskService.getTasksPaginated(user, 0, 20, null, null, Boolean.TRUE, null, null, null, null);
 
         verify(taskRepository).findAll(any(Specification.class), any(Pageable.class));
         verify(taskRepository, never()).findByUser(any(), any());
@@ -163,7 +165,7 @@ class TaskServiceTest {
         Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
         when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
 
-        taskService.getTasksPaginated(user, 0, 20, Task.Status.DONE, null, null);
+        taskService.getTasksPaginated(user, 0, 20, Task.Status.DONE, null, null, null, null, null, null);
 
         verify(taskRepository).findAll(any(Specification.class), any(Pageable.class));
         verify(taskRepository, never()).findByUser(any(), any());
@@ -175,7 +177,7 @@ class TaskServiceTest {
         Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
         when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
 
-        taskService.getTasksPaginated(user, 0, 20, null, Task.Priority.HIGH, null);
+        taskService.getTasksPaginated(user, 0, 20, null, Task.Priority.HIGH, null, null, null, null, null);
 
         verify(taskRepository).findAll(any(Specification.class), any(Pageable.class));
         verify(taskRepository, never()).findByUser(any(), any());
@@ -187,10 +189,107 @@ class TaskServiceTest {
         Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
         when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
 
-        taskService.getTasksPaginated(user, 0, 20, Task.Status.TODO, Task.Priority.LOW, null);
+        taskService.getTasksPaginated(user, 0, 20, Task.Status.TODO, Task.Priority.LOW, null, null, null, null, null);
 
         verify(taskRepository).findAll(any(Specification.class), any(Pageable.class));
         verify(taskRepository, never()).findByUser(any(), any());
+    }
+
+    @Test
+    void shouldUseSpecificationWhenDueBeforeProvided() {
+        User user = User.builder().id(1L).build();
+        Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
+
+        taskService.getTasksPaginated(user, 0, 20, null, null, null, LocalDate.now(), null, null, null);
+
+        verify(taskRepository).findAll(any(Specification.class), any(Pageable.class));
+        verify(taskRepository, never()).findByUser(any(), any());
+    }
+
+    @Test
+    void shouldUseSpecificationWhenDueAfterProvided() {
+        User user = User.builder().id(1L).build();
+        Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
+
+        taskService.getTasksPaginated(user, 0, 20, null, null, null, null, LocalDate.now(), null, null);
+
+        verify(taskRepository).findAll(any(Specification.class), any(Pageable.class));
+        verify(taskRepository, never()).findByUser(any(), any());
+    }
+
+    @Test
+    void shouldUseSpecificationWhenBothDateBoundsProvided() {
+        User user = User.builder().id(1L).build();
+        Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
+
+        taskService.getTasksPaginated(user, 0, 20, null, null, null, LocalDate.now(), LocalDate.now(), null, null);
+
+        verify(taskRepository).findAll(any(Specification.class), any(Pageable.class));
+        verify(taskRepository, never()).findByUser(any(), any());
+    }
+
+    @Test
+    void shouldApplyTitleAscendingSortOnFindByUser() {
+        User user = User.builder().id(1L).build();
+        Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(taskRepository.findByUser(eq(user), any(Pageable.class))).thenReturn(emptyPage);
+
+        taskService.getTasksPaginated(user, 0, 20, null, null, null, null, null, TaskSortField.title, "asc");
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(taskRepository).findByUser(eq(user), captor.capture());
+        Sort.Order order = captor.getValue().getSort().getOrderFor("title");
+        assertNotNull(order);
+        assertEquals(Sort.Direction.ASC, order.getDirection());
+        assertEquals(1, captor.getValue().getSort().toList().size());
+    }
+
+    @Test
+    void shouldApplyDueDateDescendingSortOnFindAll() {
+        User user = User.builder().id(1L).build();
+        Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
+
+        taskService.getTasksPaginated(user, 0, 20, Task.Status.TODO, null, null, null, null, TaskSortField.dueDate, "DESC");
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(taskRepository).findAll(any(Specification.class), captor.capture());
+        Sort.Order order = captor.getValue().getSort().getOrderFor("dueDate");
+        assertNotNull(order);
+        assertEquals(Sort.Direction.DESC, order.getDirection());
+    }
+
+    @Test
+    void shouldApplyPriorityDescendingSortOnFindAll() {
+        User user = User.builder().id(1L).build();
+        Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
+
+        taskService.getTasksPaginated(user, 0, 20, null, null, Boolean.TRUE, null, null, TaskSortField.priority, "desc");
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(taskRepository).findAll(any(Specification.class), captor.capture());
+        Sort.Order order = captor.getValue().getSort().getOrderFor("priority");
+        assertNotNull(order);
+        assertEquals(Sort.Direction.DESC, order.getDirection());
+    }
+
+    @Test
+    void shouldDefaultToCreatedAtDescWhenSortParamsNull() {
+        User user = User.builder().id(1L).build();
+        Page<Task> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(taskRepository.findByUser(eq(user), any(Pageable.class))).thenReturn(emptyPage);
+
+        taskService.getTasksPaginated(user, 0, 20, null, null, null, null, null, null, null);
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(taskRepository).findByUser(eq(user), captor.capture());
+        Sort.Order order = captor.getValue().getSort().getOrderFor("createdAt");
+        assertNotNull(order);
+        assertEquals(Sort.Direction.DESC, order.getDirection());
     }
 
     @Test

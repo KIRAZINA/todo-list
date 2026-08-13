@@ -58,12 +58,14 @@ Admin operations are self-protected: an administrator cannot change their own ro
 - Full CRUD operations for todo items (create returns `201 Created`, delete returns `204 No Content`).
 - `GET /api/tasks` accepts optional `status` (`TODO`, `IN_PROGRESS`, or `DONE`), `priority` (`LOW`, `MEDIUM`, or `HIGH`), and `overdue` (`true`) query parameters, usable independently or combined. Omitting them returns all of the caller's tasks. An unrecognized value for `status`/`priority` returns `400 Bad Request`.
 - `?overdue=true` returns only the caller's overdue tasks, using **the same rule as the response field**: past due (relative to the server's current date) and not `DONE`. `?overdue=false` or omitting the parameter applies no filter.
+- `?dueBefore=YYYY-MM-DD` and `?dueAfter=YYYY-MM-DD` filter by the task's `dueDate`, independently or combined. Both bounds are **inclusive**: `dueBefore=X` means `dueDate <= X` ("on or before X"), `dueAfter=X` means `dueDate >= X` ("on or after X"). Setting both pins a range — `dueBefore=X&dueAfter=X` returns only tasks due **exactly** on `X`. Tasks with no `dueDate` are excluded whenever any date filter is active. An inverted/empty range (e.g. `dueAfter` later than `dueBefore`) returns an empty page, not an error. Dates use ISO `yyyy-MM-dd`; a malformed date returns `400 Bad Request`. Date filters compose with `status`, `priority`, and `overdue`.
+- `?sortBy=<field>` and `?direction=<asc|desc>` sort the result. `sortBy` accepts `createdAt`, `dueDate`, `priority`, or `title` (default `createdAt`); `direction` accepts `asc` or `desc`, case-insensitive (default `desc`). An invalid `sortBy` or `direction` returns `400 Bad Request`. Sorting composes with all filters and pagination; the single sort field maps to a whitelisted entity property, so no arbitrary property injection is possible. Tasks with no `dueDate` use the database's default NULL placement when sorting by `dueDate` (acceptable for this feature).
 - Per-user data isolation via the `user_id` foreign key.
 - Partial updates via `PATCH`; explicitly passing `null` clears `description` and `dueDate`.
 - Input validation with Bean Validation annotations.
 - Every `TaskResponse` includes an `overdue` boolean. A task is overdue iff it has a `dueDate` **before** the server's current date **and** its status is not `DONE` (a task due today is not overdue, and a completed task is never overdue). Computed server-side in the service layer — pure mapping, no extra query.
 - Pagination with `?page` (0-based) and `?size` (clamped to 1–100) parameters; results are sorted by `createdAt` descending.
-- Filtering is built on JPA Specifications: `TaskRepository` extends `JpaSpecificationExecutor<Task>` and overrides `findAll(Specification<Task>, Pageable)` with an `@EntityGraph(attributePaths = "user")` join so each filter predicate (ownership + optional status/priority) stays a single query with no N+1. The unfiltered path keeps using `findByUser(...)` with its own entity graph.
+- Filtering is built on JPA Specifications: `TaskRepository` extends `JpaSpecificationExecutor<Task>` and overrides `findAll(Specification<Task>, Pageable)` with an `@EntityGraph(attributePaths = "user")` join so each filter predicate (ownership + optional status/priority/overdue/due-date bounds) stays a single query with no N+1. The unfiltered path keeps using `findByUser(...)` with its own entity graph.
 
 ### Architecture
 
@@ -220,6 +222,38 @@ curl -X GET "http://localhost:8080/api/tasks?overdue=true" \
 
 # Overdue composes with other filters
 curl -X GET "http://localhost:8080/api/tasks?overdue=true&priority=HIGH" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Tasks due on or before a date (inclusive upper bound)
+curl -X GET "http://localhost:8080/api/tasks?dueBefore=2026-06-01" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Tasks due on or after a date (inclusive lower bound)
+curl -X GET "http://localhost:8080/api/tasks?dueAfter=2026-06-01" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Tasks due within an inclusive range
+curl -X GET "http://localhost:8080/api/tasks?dueBefore=2026-06-30&dueAfter=2026-06-01" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Tasks due exactly on one day (inclusive bounds on the same date)
+curl -X GET "http://localhost:8080/api/tasks?dueBefore=2026-06-15&dueAfter=2026-06-15" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Date range composes with status, priority, and overdue
+curl -X GET "http://localhost:8080/api/tasks?dueBefore=2026-06-30&status=TODO&priority=HIGH" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Sort by title ascending
+curl -X GET "http://localhost:8080/api/tasks?sortBy=title&direction=asc" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Sort by due date, newest deadline first
+curl -X GET "http://localhost:8080/api/tasks?sortBy=dueDate&direction=desc" \
+  -H "Authorization: Bearer <your_jwt_token>"
+
+# Sort composes with filters and pagination (default sort is createdAt DESC)
+curl -X GET "http://localhost:8080/api/tasks?status=TODO&sortBy=priority&direction=asc&page=0&size=20" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # List all users as an administrator

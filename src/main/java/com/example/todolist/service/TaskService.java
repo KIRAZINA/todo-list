@@ -57,14 +57,20 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public PaginatedTaskResponse getTasksPaginated(User currentUser, int page, int size,
-                                                   Task.Status status, Task.Priority priority, Boolean overdue) {
+                                                   Task.Status status, Task.Priority priority, Boolean overdue,
+                                                   LocalDate dueBefore, LocalDate dueAfter,
+                                                   TaskSortField sortField, String direction) {
         boolean overdueActive = Boolean.TRUE.equals(overdue);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        TaskSortField effectiveSortField = sortField != null ? sortField : TaskSortField.createdAt;
+        String effectiveDirection = direction != null ? direction : "desc";
+        Sort.Direction sortDirection = Sort.Direction.fromString(effectiveDirection);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, effectiveSortField.getEntityProperty()));
         Page<Task> taskPage;
-        if (status == null && priority == null && !overdueActive) {
+        if (status == null && priority == null && !overdueActive && dueBefore == null && dueAfter == null) {
             taskPage = taskRepository.findByUser(currentUser, pageable);
         } else {
-            taskPage = taskRepository.findAll(taskFilter(currentUser, status, priority, overdueActive), pageable);
+            taskPage = taskRepository.findAll(
+                    taskFilter(currentUser, status, priority, overdueActive, dueBefore, dueAfter), pageable);
         }
 
         List<TaskResponse> content = taskPage.getContent().stream()
@@ -143,7 +149,7 @@ public class TaskService {
     }
 
     private Specification<Task> taskFilter(User currentUser, Task.Status status, Task.Priority priority,
-                                           boolean overdueActive) {
+                                           boolean overdueActive, LocalDate dueBefore, LocalDate dueAfter) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("user").get("id"), currentUser.getId()));
@@ -156,6 +162,12 @@ public class TaskService {
             if (overdueActive) {
                 predicates.add(cb.lessThan(root.get("dueDate"), LocalDate.now()));
                 predicates.add(cb.notEqual(root.get("status"), Task.Status.DONE));
+            }
+            if (dueBefore != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("dueDate"), dueBefore));
+            }
+            if (dueAfter != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("dueDate"), dueAfter));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

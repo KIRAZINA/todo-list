@@ -13,6 +13,7 @@ import java.time.LocalDate;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.hamcrest.Matchers.hasKey;
@@ -791,6 +792,345 @@ class TaskControllerRestAssuredTest extends RestAssuredTestBase {
                 .contentType("application/json")
                 .body("dueDate", equalTo(pastDue))
                 .body("overdue", equalTo(false));
+    }
+
+    @Test
+    @DisplayName("Should filter by dueBefore inclusive and stay user-scoped")
+    void shouldFilterByDueBeforeInclusive() {
+        String now = LocalDate.now().toString();
+        createTaskWithDueDate(user1Token, "Past Task", "TODO", "HIGH", LocalDate.now().minusDays(5).toString());
+        createTaskWithDueDate(user1Token, "Today Task", "TODO", "HIGH", now);
+        createTaskWithDueDate(user1Token, "Future Task", "TODO", "HIGH", LocalDate.now().plusDays(5).toString());
+        createTaskWithDueDate(user1Token, "No Date Task", "TODO", "HIGH", null);
+        createTaskWithDueDate(user2Token, "User2 Past", "TODO", "HIGH", LocalDate.now().minusDays(5).toString());
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueBefore", now)
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(2))
+                .body("content.title", hasItems("Past Task", "Today Task"))
+                .body("content.title", not(hasItems("Future Task", "No Date Task", "User2 Past")));
+    }
+
+    @Test
+    @DisplayName("Should filter by dueAfter inclusive and stay user-scoped")
+    void shouldFilterByDueAfterInclusive() {
+        String now = LocalDate.now().toString();
+        createTaskWithDueDate(user1Token, "Past Task", "TODO", "HIGH", LocalDate.now().minusDays(5).toString());
+        createTaskWithDueDate(user1Token, "Today Task", "TODO", "HIGH", now);
+        createTaskWithDueDate(user1Token, "Future Task", "TODO", "HIGH", LocalDate.now().plusDays(5).toString());
+        createTaskWithDueDate(user1Token, "No Date Task", "TODO", "HIGH", null);
+        createTaskWithDueDate(user2Token, "User2 Future", "TODO", "HIGH", LocalDate.now().plusDays(5).toString());
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueAfter", now)
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(2))
+                .body("content.title", hasItems("Today Task", "Future Task"))
+                .body("content.title", not(hasItems("Past Task", "No Date Task", "User2 Future")));
+    }
+
+    @Test
+    @DisplayName("Should return only tasks due exactly on the single-day range")
+    void shouldReturnTasksDueExactlyOnSingleDayRange() {
+        String now = LocalDate.now().toString();
+        createTaskWithDueDate(user1Token, "Past Task", "TODO", "HIGH", LocalDate.now().minusDays(5).toString());
+        createTaskWithDueDate(user1Token, "Today Task", "TODO", "HIGH", now);
+        createTaskWithDueDate(user1Token, "Future Task", "TODO", "HIGH", LocalDate.now().plusDays(5).toString());
+        createTaskWithDueDate(user1Token, "No Date Task", "TODO", "HIGH", null);
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueBefore", now)
+                .queryParam("dueAfter", now)
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(1))
+                .body("content[0].title", equalTo("Today Task"));
+    }
+
+    @Test
+    @DisplayName("Should return empty page for inverted date range")
+    void shouldReturnEmptyForInvertedRange() {
+        String now = LocalDate.now().toString();
+        createTaskWithDueDate(user1Token, "Past Task", "TODO", "HIGH", LocalDate.now().minusDays(5).toString());
+        createTaskWithDueDate(user1Token, "Future Task", "TODO", "HIGH", LocalDate.now().plusDays(5).toString());
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueBefore", now)
+                .queryParam("dueAfter", LocalDate.now().plusDays(10).toString())
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", empty())
+                .body("totalElements", equalTo(0));
+    }
+
+    @Test
+    @DisplayName("Should exclude tasks without a due date whenever a date filter is active")
+    void shouldExcludeNullDueDateWhenDateFilterActive() {
+        String now = LocalDate.now().toString();
+        createTaskWithDueDate(user1Token, "Dated Task", "TODO", "HIGH", now);
+        createTaskWithDueDate(user1Token, "No Date Task", "TODO", "HIGH", null);
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueBefore", now)
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(1))
+                .body("content[0].title", equalTo("Dated Task"));
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueAfter", now)
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(1))
+                .body("content[0].title", equalTo("Dated Task"));
+    }
+
+    @Test
+    @DisplayName("Should compose date filter with status and priority")
+    void shouldComposeDateFilterWithStatusAndPriority() {
+        String now = LocalDate.now().toString();
+        createTaskWithDueDate(user1Token, "High Todo Past", "TODO", "HIGH", LocalDate.now().minusDays(5).toString());
+        createTaskWithDueDate(user1Token, "Low Todo Past", "TODO", "LOW", LocalDate.now().minusDays(5).toString());
+        createTaskWithDueDate(user1Token, "High Done Past", "DONE", "HIGH", LocalDate.now().minusDays(5).toString());
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueBefore", now)
+                .queryParam("status", "TODO")
+                .queryParam("priority", "HIGH")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(1))
+                .body("content[0].title", equalTo("High Todo Past"));
+    }
+
+    @Test
+    @DisplayName("Should compose date filter with overdue")
+    void shouldComposeDateFilterWithOverdue() {
+        String now = LocalDate.now().toString();
+        createTaskWithDueDate(user1Token, "Overdue Past", "TODO", "HIGH", LocalDate.now().minusDays(5).toString());
+        createTaskWithDueDate(user1Token, "Due Today", "TODO", "HIGH", now);
+        createTaskWithDueDate(user1Token, "Future Task", "TODO", "HIGH", LocalDate.now().plusDays(5).toString());
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueBefore", now)
+                .queryParam("overdue", true)
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(1))
+                .body("content[0].title", equalTo("Overdue Past"))
+                .body("content[0].overdue", equalTo(true));
+    }
+
+    @Test
+    @DisplayName("Should reject malformed date filter with 400")
+    void shouldRejectMalformedDateFilter() {
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueBefore", "notadate")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(400)
+                .contentType("application/json")
+                .body("$", hasKey("error"));
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("dueAfter", "13/13/2026")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(400)
+                .contentType("application/json")
+                .body("$", hasKey("error"));
+    }
+
+    @Test
+    @DisplayName("Should return all tasks when date params are omitted")
+    void shouldReturnAllWhenDateParamsOmitted() {
+        createTaskWithDueDate(user1Token, "Past Task", "TODO", "HIGH", LocalDate.now().minusDays(5).toString());
+        createTaskWithDueDate(user1Token, "Future Task", "TODO", "HIGH", LocalDate.now().plusDays(5).toString());
+        createTaskWithDueDate(user1Token, "No Date Task", "TODO", "HIGH", null);
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(3));
+    }
+
+    @Test
+    @DisplayName("Should sort tasks by title ascending")
+    void shouldSortByTitleAscending() {
+        createTaskWithDueDate(user1Token, "C_Task", "DONE", "MEDIUM", null);
+        createTaskWithDueDate(user1Token, "A_Task", "TODO", "LOW", LocalDate.now().plusDays(5).toString());
+        createTaskWithDueDate(user1Token, "B_Task", "TODO", "HIGH", LocalDate.now().minusDays(5).toString());
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("sortBy", "title")
+                .queryParam("direction", "asc")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content.title", contains("A_Task", "B_Task", "C_Task"));
+    }
+
+    @Test
+    @DisplayName("Should sort tasks by priority descending")
+    void shouldSortByPriorityDescending() {
+        createTaskWithDueDate(user1Token, "Alpha", "TODO", "HIGH", null);
+        createTaskWithDueDate(user1Token, "Beta", "TODO", "LOW", null);
+        createTaskWithDueDate(user1Token, "Gamma", "TODO", "MEDIUM", null);
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("sortBy", "priority")
+                .queryParam("direction", "desc")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content.title", contains("Gamma", "Beta", "Alpha"));
+    }
+
+    @Test
+    @DisplayName("Should sort tasks by due date ascending and descending")
+    void shouldSortByDueDateBothDirections() {
+        createTaskWithDueDate(user1Token, "Past Task", "TODO", "LOW", LocalDate.now().minusDays(5).toString());
+        createTaskWithDueDate(user1Token, "Today Task", "TODO", "LOW", LocalDate.now().toString());
+        createTaskWithDueDate(user1Token, "Future Task", "TODO", "LOW", LocalDate.now().plusDays(5).toString());
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("sortBy", "dueDate")
+                .queryParam("direction", "asc")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content.title", contains("Past Task", "Today Task", "Future Task"));
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("sortBy", "dueDate")
+                .queryParam("direction", "desc")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content.title", contains("Future Task", "Today Task", "Past Task"));
+    }
+
+    @Test
+    @DisplayName("Should include tasks without a due date when sorting by due date")
+    void shouldIncludeNullDueDateWhenSortingByDueDate() {
+        createTaskWithDueDate(user1Token, "Dated", "TODO", "LOW", LocalDate.now().toString());
+        createTaskWithDueDate(user1Token, "No Date", "TODO", "LOW", null);
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("sortBy", "dueDate")
+                .queryParam("direction", "asc")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(2))
+                .body("content.title", hasItems("Dated", "No Date"));
+    }
+
+    @Test
+    @DisplayName("Should reject invalid sortBy with 400")
+    void shouldRejectInvalidSortBy() {
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("sortBy", "bogus")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(400)
+                .contentType("application/json")
+                .body("$", hasKey("error"));
+    }
+
+    @Test
+    @DisplayName("Should reject invalid direction with 400")
+    void shouldRejectInvalidDirection() {
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("direction", "sideways")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(400)
+                .contentType("application/json")
+                .body("$", hasKey("error"));
+    }
+
+    @Test
+    @DisplayName("Should compose sort with an active filter")
+    void shouldComposeSortWithFilter() {
+        createTaskWithDueDate(user1Token, "High Done C", "DONE", "HIGH", null);
+        createTaskWithDueDate(user1Token, "Low Todo B", "TODO", "LOW", null);
+        createTaskWithDueDate(user1Token, "High Todo A", "TODO", "HIGH", null);
+
+        given()
+                .header("Authorization", bearer(user1Token))
+                .queryParam("status", "TODO")
+                .queryParam("sortBy", "priority")
+                .queryParam("direction", "asc")
+                .when()
+                .get("/api/tasks")
+                .then()
+                .statusCode(200)
+                .contentType("application/json")
+                .body("content", hasSize(2))
+                .body("content.title", contains("High Todo A", "Low Todo B"));
     }
 
     private void createTask(String token, String title, String status) {

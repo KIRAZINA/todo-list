@@ -26,6 +26,10 @@ export default function TaskBoard() {
   const [statusFilter, setStatusFilter] = useState(null);
   const [priorityFilter, setPriorityFilter] = useState(null);
   const [overdueFilter, setOverdueFilter] = useState(false);
+  const [dueFrom, setDueFrom] = useState("");
+  const [dueTo, setDueTo] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [direction, setDirection] = useState("desc");
   const [data, setData] = useState(null); // PaginatedTaskResponse
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,11 +40,11 @@ export default function TaskBoard() {
   const [dueDate, setDueDate] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const load = useCallback(async (p, status, prio, overdue) => {
+  const load = useCallback(async (p, status, prio, overdue, from, to, sort, dir) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.listTasks(p, PAGE_SIZE, status, prio, overdue);
+      const res = await api.listTasks(p, PAGE_SIZE, status, prio, overdue, from, to, sort, dir);
       setData(res);
     } catch (err) {
       setError(err.message);
@@ -50,8 +54,8 @@ export default function TaskBoard() {
   }, []);
 
   useEffect(() => {
-    load(page, statusFilter, priorityFilter, overdueFilter);
-  }, [page, statusFilter, priorityFilter, overdueFilter, load]);
+    load(page, statusFilter, priorityFilter, overdueFilter, dueFrom, dueTo, sortBy, direction);
+  }, [page, statusFilter, priorityFilter, overdueFilter, dueFrom, dueTo, sortBy, direction, load]);
 
   function handleStatusFilterChange(value) {
     setPage(0);
@@ -66,6 +70,26 @@ export default function TaskBoard() {
   function handleOverdueToggle() {
     setPage(0);
     setOverdueFilter((v) => !v);
+  }
+
+  function handleDueFromChange(value) {
+    setPage(0);
+    setDueFrom(value);
+  }
+
+  function handleDueToChange(value) {
+    setPage(0);
+    setDueTo(value);
+  }
+
+  function handleSortByChange(value) {
+    setPage(0);
+    setSortBy(value);
+  }
+
+  function handleDirectionToggle() {
+    setPage(0);
+    setDirection((d) => (d === "asc" ? "desc" : "asc"));
   }
 
   async function handleCreate(e) {
@@ -85,7 +109,7 @@ export default function TaskBoard() {
       setPriority("MEDIUM");
       setDueDate("");
       if (page === 0) {
-        load(0, statusFilter, priorityFilter, overdueFilter);
+        load(0, statusFilter, priorityFilter, overdueFilter, dueFrom, dueTo, sortBy, direction);
       } else {
         setPage(0);
       }
@@ -107,7 +131,7 @@ export default function TaskBoard() {
       await api.updateTask(task.id, { status: updated });
     } catch (err) {
       setError(err.message);
-      load(page, statusFilter, priorityFilter, overdueFilter);
+      load(page, statusFilter, priorityFilter, overdueFilter, dueFrom, dueTo, sortBy, direction);
     }
   }
 
@@ -116,7 +140,7 @@ export default function TaskBoard() {
     setError(null);
     try {
       await api.deleteTask(task.id);
-      load(page, statusFilter, priorityFilter, overdueFilter);
+      load(page, statusFilter, priorityFilter, overdueFilter, dueFrom, dueTo, sortBy, direction);
     } catch (err) {
       setError(err.message);
     }
@@ -210,6 +234,38 @@ export default function TaskBoard() {
             aria-pressed={overdueFilter}
           >
             Overdue
+          </button>
+        </div>
+        <div className="date-filters" role="group" aria-label="Filter tasks by due date">
+          <label htmlFor="dueFrom">Due from</label>
+          <input
+            id="dueFrom"
+            type="date"
+            value={dueFrom}
+            onChange={(e) => handleDueFromChange(e.target.value)}
+          />
+          <label htmlFor="dueTo">Due to</label>
+          <input
+            id="dueTo"
+            type="date"
+            value={dueTo}
+            onChange={(e) => handleDueToChange(e.target.value)}
+          />
+        </div>
+        <div className="sort-filters" role="group" aria-label="Sort tasks">
+          <label htmlFor="sortBy">Sort by</label>
+          <select id="sortBy" value={sortBy} onChange={(e) => handleSortByChange(e.target.value)}>
+            <option value="createdAt">Created</option>
+            <option value="dueDate">Due date</option>
+            <option value="priority">Priority</option>
+            <option value="title">Title</option>
+          </select>
+          <button
+            className={`filter-btn sort-direction${direction === "asc" ? " active" : ""}`}
+            onClick={handleDirectionToggle}
+            aria-pressed={direction === "asc"}
+          >
+            {direction === "asc" ? "↑ Asc" : "↓ Desc"}
           </button>
         </div>
       </div>
