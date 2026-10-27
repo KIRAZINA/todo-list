@@ -28,11 +28,11 @@ import java.time.LocalDate;
 
 /**
  * ADMIN-only endpoints: user management and visibility into every task
- * across all users. Everything under /api/admin/** is gated by
+ * across all users. Everything under /api/v1/admin/** is gated by
  * hasRole("ADMIN") in SecurityConfig.
  */
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 public class AdminController {
 

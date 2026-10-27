@@ -35,7 +35,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .body(requestBody)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201)
                 .contentType("application/json")
@@ -61,7 +61,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .body(requestBody)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201);
 
@@ -69,7 +69,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .body(requestBody)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(409)
                 .contentType("application/json")
@@ -93,7 +93,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .body(registerBody)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201);
 
@@ -108,7 +108,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
         Response response = given()
                 .body(loginBody)
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
                 .contentType("application/json")
@@ -137,7 +137,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .body(loginBody)
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(401);
     }
@@ -155,7 +155,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(400);
 
@@ -169,7 +169,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(400);
 
@@ -183,7 +183,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(400);
     }
@@ -200,7 +200,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(400);
 
@@ -213,7 +213,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(400);
     }
@@ -232,7 +232,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, timestamp, timestamp))
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201);
 
@@ -245,7 +245,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, timestamp))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(401);
     }
@@ -264,7 +264,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, timestamp, timestamp))
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(400);
 
@@ -278,7 +278,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, timestamp, timestamp))
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(400);
     }
@@ -298,7 +298,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, username, timestamp))
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201);
 
@@ -312,7 +312,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                         }
                         """, username))
                     .when()
-                    .post("/api/auth/login")
+                    .post("/api/v1/auth/login")
                     .then()
                     .statusCode(401);
         }
@@ -326,7 +326,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, username))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(423);
     }
@@ -337,14 +337,14 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .body("{invalid json}")
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(400);
 
         given()
                 .body("{invalid json}")
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(400);
     }
@@ -365,7 +365,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .body(registerBody)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201)
                 .time(lessThan(2000L)); // Less than 2 seconds
@@ -379,7 +379,7 @@ class AuthControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, timestamp))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
                 .time(lessThan(1000L)); // Less than 1 second

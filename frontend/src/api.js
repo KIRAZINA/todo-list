@@ -1,9 +1,5 @@
-const BASE = "/api";
+const BASE = "/api/v1";
 
-// Decodes the JWT payload for display only (e.g. showing username/role in
-// the topbar). This is NOT signature verification and must never be used
-// for authorization decisions — the backend is the only source of truth
-// for that.
 export function decodeJwtPayload(jwt) {
   try {
     const payload = jwt.split(".")[1];
@@ -29,7 +25,34 @@ export function getToken() {
   return token;
 }
 
-async function request(path, { method = "GET", body, auth = true } = {}) {
+let refreshing = null;
+
+async function doRefresh() {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    try {
+      const res = await fetch(`${BASE}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data?.token) {
+        setToken(data.token);
+        return data.token;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+async function request(path, { method = "GET", body, auth = true, _retry = false } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth && token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -39,9 +62,9 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: "include",
   });
 
-  // 204 No Content (task delete)
   if (res.status === 204) return null;
 
   let data = null;
@@ -59,10 +82,12 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
       data?.error ||
       (data?.errors && Object.values(data.errors).join(", ")) ||
       `Request failed (${res.status})`;
-    // A rejected token (expired, revoked, or signed by a different secret
-    // than the current backend) must not leave the app in a half-logged-in
-    // state. Drop the token and signal the session to close.
-    if (res.status === 401 && auth && token) {
+
+    if (res.status === 401 && auth && token && !_retry) {
+      const newToken = await doRefresh();
+      if (newToken) {
+        return request(path, { method, body, auth, _retry: true });
+      }
       setToken(null);
       window.dispatchEvent(new Event("todo:auth-expired"));
     }
@@ -74,18 +99,10 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
 
 export const api = {
   register: (username, password, email) =>
-    request("/auth/register", {
-      method: "POST",
-      auth: false,
-      body: { username, password, email },
-    }),
+    request("/auth/register", { method: "POST", auth: false, body: { username, password, email } }),
 
   login: (username, password) =>
-    request("/auth/login", {
-      method: "POST",
-      auth: false,
-      body: { username, password },
-    }),
+    request("/auth/login", { method: "POST", auth: false, body: { username, password } }),
 
   logout: () => request("/auth/logout", { method: "POST" }),
 
@@ -135,4 +152,9 @@ export const api = {
     request(`/admin/users/${userId}/role`, { method: "PATCH", body: { role } }),
 
   deleteUser: (userId) => request(`/admin/users/${userId}`, { method: "DELETE" }),
+
+  listTags: () => request("/tags"),
+  createTag: (tag) => request("/tags", { method: "POST", body: tag }),
+  updateTag: (id, tag) => request(`/tags/${id}`, { method: "PUT", body: tag }),
+  deleteTag: (id) => request(`/tags/${id}`, { method: "DELETE" }),
 };

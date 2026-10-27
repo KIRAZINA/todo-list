@@ -10,7 +10,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.notNullValue;
 
 /**
- * Integration tests for server-side token revocation via /api/auth/logout.
+ * Integration tests for server-side token revocation via /api/v1/auth/logout.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AuthLogoutRestAssuredTest extends RestAssuredTestBase {
@@ -31,7 +31,7 @@ class AuthLogoutRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, username, password, timestamp))
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201);
 
@@ -41,7 +41,7 @@ class AuthLogoutRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(token))
                 .when()
-                .get("/api/tasks")
+                .get("/api/v1/tasks")
                 .then()
                 .statusCode(200);
 
@@ -49,7 +49,7 @@ class AuthLogoutRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(token))
                 .when()
-                .post("/api/auth/logout")
+                .post("/api/v1/auth/logout")
                 .then()
                 .statusCode(204);
 
@@ -57,7 +57,7 @@ class AuthLogoutRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(token))
                 .when()
-                .get("/api/tasks")
+                .get("/api/v1/tasks")
                 .then()
                 .statusCode(401);
 
@@ -66,7 +66,7 @@ class AuthLogoutRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(newToken))
                 .when()
-                .get("/api/tasks")
+                .get("/api/v1/tasks")
                 .then()
                 .statusCode(200);
     }
@@ -80,7 +80,7 @@ class AuthLogoutRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, username, password))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
                 .body("token", notNullValue())

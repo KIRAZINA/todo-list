@@ -150,3 +150,7 @@ yarn-error.log*
 *.orig
 
 frontend/dist/
+
+# Frontend build artifacts
+frontend/dist/
+frontend/node_modules/

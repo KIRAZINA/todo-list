@@ -13,8 +13,8 @@ public class HomeController {
         return Map.of(
                 "message", "Welcome to Todo List Backend API",
                 "version", "1.0",
-                "auth", "/api/auth/login or /api/auth/register",
-                "tasks", "/api/tasks (requires authentication)"
+                "auth", "/api/v1/auth/login or /api/v1/auth/register",
+                "tasks", "/api/v1/tasks (requires authentication)"
         );
     }
 }

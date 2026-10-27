@@ -4,8 +4,12 @@ import com.example.todolist.dto.task.PaginatedTaskResponse;
 import com.example.todolist.dto.task.TaskCreateRequest;
 import com.example.todolist.dto.task.TaskResponse;
 import com.example.todolist.dto.task.TaskUpdateRequest;
+import com.example.todolist.dto.task.SubtaskDto;
+import com.example.todolist.entity.Subtask;
+import com.example.todolist.entity.Tag;
 import com.example.todolist.entity.Task;
 import com.example.todolist.entity.User;
+import com.example.todolist.repository.TagRepository;
 import com.example.todolist.exception.ResourceNotFoundException;
 import com.example.todolist.repository.TaskRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -21,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +33,7 @@ import java.util.stream.Collectors;
 public class TaskService {
 
     private final TaskRepository taskRepository;
+    private final TagRepository tagRepository;
 
     @Transactional
     public TaskResponse createTask(TaskCreateRequest request, User user) {
@@ -39,6 +45,19 @@ public class TaskService {
                 .dueDate(request.getDueDate())
                 .user(user)
                 .build();
+
+        if (request.getTags() != null) {
+            for (String name : request.getTags()) {
+                Tag tag = tagRepository.findByName(name).orElseGet(() -> tagRepository.save(Tag.builder().name(name).build()));
+                task.getTags().add(tag);
+            }
+        }
+        if (request.getSubtasks() != null) {
+            for (SubtaskDto dto : request.getSubtasks()) {
+                Subtask st = Subtask.builder().task(task).title(dto.getTitle()).completed(dto.isCompleted()).build();
+                task.getSubtasks().add(st);
+            }
+        }
 
         task = taskRepository.save(task);
         return toResponse(task);
@@ -144,6 +163,26 @@ public class TaskService {
             task.setDueDate(request.getDueDate());
         }
 
+        if (request.isTagsProvided()) {
+            task.getTags().clear();
+            if (request.getTags() != null) {
+                for (String name : request.getTags()) {
+                    Tag tag = tagRepository.findByName(name).orElseGet(() -> tagRepository.save(Tag.builder().name(name).build()));
+                    task.getTags().add(tag);
+                }
+            }
+        }
+        if (request.isSubtasksProvided()) {
+            task.getSubtasks().clear();
+            if (request.getSubtasks() != null) {
+                for (SubtaskDto dto : request.getSubtasks()) {
+                    Subtask st = Subtask.builder().task(task).title(dto.getTitle()).completed(dto.isCompleted()).build();
+                    if (dto.getId() != null) st.setId(dto.getId());
+                    task.getSubtasks().add(st);
+                }
+            }
+        }
+
         task = taskRepository.save(task);
         return toResponse(task);
     }
@@ -190,6 +229,11 @@ public class TaskService {
     }
 
     private TaskResponse toResponse(Task task) {
+        List<SubtaskDto> subtaskDtos = task.getSubtasks().stream()
+                .map(s -> SubtaskDto.builder().id(s.getId()).title(s.getTitle()).completed(s.isCompleted()).build())
+                .collect(Collectors.toList());
+        Set<String> tagNames = task.getTags().stream().map(Tag::getName).collect(Collectors.toSet());
+
         return TaskResponse.builder()
                 .id(task.getId())
                 .title(task.getTitle())
@@ -198,11 +242,20 @@ public class TaskService {
                 .status(task.getStatus())
                 .dueDate(task.getDueDate())
                 .overdue(isOverdue(task))
+                .nearDueDate(isNearDueDate(task))
                 .userId(task.getUser().getId())
                 .ownerUsername(task.getUser().getUsername())
+                .tags(tagNames)
+                .subtasks(subtaskDtos)
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
                 .build();
+    }
+
+    private boolean isNearDueDate(Task task) {
+        return task.getDueDate() != null
+                && task.getStatus() != Task.Status.DONE
+                && !task.getDueDate().isAfter(LocalDate.now().plusDays(1));
     }
 
     private boolean isOverdue(Task task) {

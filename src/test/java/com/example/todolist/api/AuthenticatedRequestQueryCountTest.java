@@ -42,7 +42,7 @@ class AuthenticatedRequestQueryCountTest {
         Statistics stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
 
         long before = stats.getPrepareStatementCount();
-        mockMvc.perform(get("/api/test/health").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/v1/test/health").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
         long after = stats.getPrepareStatementCount();
 
@@ -57,7 +57,7 @@ class AuthenticatedRequestQueryCountTest {
         Statistics stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
 
         long before = stats.getPrepareStatementCount();
-        mockMvc.perform(get("/api/tasks").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/v1/tasks").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
         long after = stats.getPrepareStatementCount();
 

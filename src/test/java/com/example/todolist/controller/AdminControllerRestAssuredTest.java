@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Integration tests for the ADMIN-only /api/admin/** endpoints.
+ * Integration tests for the ADMIN-only /api/v1/admin/** endpoints.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AdminControllerRestAssuredTest extends RestAssuredTestBase {
@@ -50,7 +50,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(token))
                 .when()
-                .get("/api/admin/users?page=0&size=20")
+                .get("/api/v1/admin/users?page=0&size=20")
                 .then()
                 .statusCode(200)
                 .body("content", notNullValue());
@@ -73,7 +73,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .post("/api/tasks")
+                .post("/api/v1/tasks")
                 .then()
                 .statusCode(201);
 
@@ -82,7 +82,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(adminToken))
                 .when()
-                .get("/api/admin/tasks?page=0&size=20")
+                .get("/api/v1/admin/tasks?page=0&size=20")
                 .then()
                 .statusCode(200)
                 .body("totalElements", greaterThanOrEqualTo(1));
@@ -97,14 +97,14 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(userToken))
                 .when()
-                .get("/api/admin/users")
+                .get("/api/v1/admin/users")
                 .then()
                 .statusCode(403);
 
         given()
                 .header("Authorization", bearer(userToken))
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(403);
     }
@@ -114,7 +114,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
     void anonymousGetsUnauthorized() {
         given()
                 .when()
-                .get("/api/admin/users")
+                .get("/api/v1/admin/users")
                 .then()
                 .statusCode(401);
     }
@@ -137,7 +137,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .contentType("application/json")
                 .body("{\"role\": \"ADMIN\"}")
                 .when()
-                .patch("/api/admin/users/" + user.getId() + "/role")
+                .patch("/api/v1/admin/users/" + user.getId() + "/role")
                 .then()
                 .statusCode(200)
                 .body("role", equalTo("ADMIN"));
@@ -147,7 +147,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(promotedToken))
                 .when()
-                .get("/api/admin/users")
+                .get("/api/v1/admin/users")
                 .then()
                 .statusCode(200);
     }
@@ -169,7 +169,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .contentType("application/json")
                 .body("{\"role\": \"USER\"}")
                 .when()
-                .patch("/api/admin/users/" + admin.getId() + "/role")
+                .patch("/api/v1/admin/users/" + admin.getId() + "/role")
                 .then()
                 .statusCode(400);
     }
@@ -192,7 +192,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .contentType("application/json")
                 .body("{\"role\": \"SUPERUSER\"}")
                 .when()
-                .patch("/api/admin/users/" + user.getId() + "/role")
+                .patch("/api/v1/admin/users/" + user.getId() + "/role")
                 .then()
                 .statusCode(400);
     }
@@ -208,14 +208,14 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .contentType("application/json")
                 .body("{\"role\": \"ADMIN\"}")
                 .when()
-                .patch("/api/admin/users/1/role")
+                .patch("/api/v1/admin/users/1/role")
                 .then()
                 .statusCode(403);
 
         given()
                 .header("Authorization", bearer(userToken))
                 .when()
-                .delete("/api/admin/users/1")
+                .delete("/api/v1/admin/users/1")
                 .then()
                 .statusCode(403);
     }
@@ -242,7 +242,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(adminToken))
                 .when()
-                .delete("/api/admin/users/" + user.getId())
+                .delete("/api/v1/admin/users/" + user.getId())
                 .then()
                 .statusCode(204);
 
@@ -265,7 +265,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(adminToken))
                 .when()
-                .delete("/api/admin/users/" + admin.getId())
+                .delete("/api/v1/admin/users/" + admin.getId())
                 .then()
                 .statusCode(400);
 
@@ -290,7 +290,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(adminToken))
                 .queryParam("status", "DONE")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(200)
                 .body("content.title", hasItems(a1.getTitle(), b1.getTitle()))
@@ -301,7 +301,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(adminToken))
                 .queryParam("priority", "LOW")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(200)
                 .body("content.title", hasItems(a1.getTitle(), b2.getTitle()))
@@ -313,7 +313,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .queryParam("status", "DONE")
                 .queryParam("priority", "MEDIUM")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(200)
                 .body("content.title", hasItems(b1.getTitle()))
@@ -343,7 +343,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(adminToken))
                 .queryParam("overdue", "true")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(200)
                 .body("content.title", hasItems(past.getTitle()))
@@ -373,7 +373,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(adminToken))
                 .queryParam("dueBefore", LocalDate.now().plusDays(1).toString())
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(200)
                 .body("content.title", hasItems(today.getTitle(), tomorrow.getTitle()))
@@ -383,7 +383,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(adminToken))
                 .queryParam("dueAfter", LocalDate.now().toString())
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(200)
                 .body("content.title", hasItems(today.getTitle(), tomorrow.getTitle(), far.getTitle()))
@@ -394,7 +394,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .queryParam("dueAfter", LocalDate.now().toString())
                 .queryParam("dueBefore", LocalDate.now().plusDays(1).toString())
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(200)
                 .body("content.title", hasItems(today.getTitle(), tomorrow.getTitle()))
@@ -421,7 +421,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .queryParam("direction", "asc")
                 .queryParam("size", "100")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -438,7 +438,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .queryParam("direction", "asc")
                 .queryParam("size", "100")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -464,7 +464,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(adminToken))
                 .queryParam("sortBy", "bogus")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(400);
 
@@ -472,7 +472,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(adminToken))
                 .queryParam("direction", "bogus")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(400);
 
@@ -480,7 +480,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(adminToken))
                 .queryParam("dueBefore", "notadate")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(400);
 
@@ -488,7 +488,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(adminToken))
                 .queryParam("priority", "bogus")
                 .when()
-                .get("/api/admin/tasks")
+                .get("/api/v1/admin/tasks")
                 .then()
                 .statusCode(400);
     }
@@ -522,7 +522,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, username, password))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -550,7 +550,7 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, username))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
                 .extract()

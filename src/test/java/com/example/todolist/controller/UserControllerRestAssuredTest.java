@@ -30,7 +30,7 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, username, password, uniqueEmail))
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201);
 
@@ -46,7 +46,7 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, username, password))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -55,14 +55,14 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
     }
 
     @Test
-    @DisplayName("GET /api/users/me returns the caller's profile")
+    @DisplayName("GET /api/v1/users/me returns the caller's profile")
     void shouldReturnCurrentUserProfile() {
         TestUser user = registerUser("me_user", "SecurePass123!", "me@example.com");
 
         given()
                 .header("Authorization", bearer(user.token()))
                 .when()
-                .get("/api/users/me")
+                .get("/api/v1/users/me")
                 .then()
                 .statusCode(200)
                 .body("username", equalTo(user.username()))
@@ -73,18 +73,18 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
     }
 
     @Test
-    @DisplayName("GET /api/users/me requires authentication")
+    @DisplayName("GET /api/v1/users/me requires authentication")
     void shouldRejectMeWithoutToken() {
         given()
                 .when()
-                .get("/api/users/me")
+                .get("/api/v1/users/me")
                 .then()
                 .statusCode(401)
                 .body("error", equalTo("Authentication required"));
     }
 
     @Test
-    @DisplayName("PATCH /api/users/me with a new unique email succeeds and persists")
+    @DisplayName("PATCH /api/v1/users/me with a new unique email succeeds and persists")
     void shouldUpdateEmailSuccessfully() {
         TestUser user = registerUser("mail_user", "SecurePass123!", "before@example.com");
 
@@ -96,7 +96,7 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .patch("/api/users/me")
+                .patch("/api/v1/users/me")
                 .then()
                 .statusCode(200)
                 .body("email", equalTo("after@example.com"))
@@ -105,14 +105,14 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(user.token()))
                 .when()
-                .get("/api/users/me")
+                .get("/api/v1/users/me")
                 .then()
                 .statusCode(200)
                 .body("email", equalTo("after@example.com"));
     }
 
     @Test
-    @DisplayName("PATCH /api/users/me with an in-use email returns 409")
+    @DisplayName("PATCH /api/v1/users/me with an in-use email returns 409")
     void shouldRejectDuplicateEmail() {
         TestUser first = registerUser("dup_a", "SecurePass123!", "taken@example.com");
         TestUser second = registerUser("dup_b", "SecurePass123!", "other@example.com");
@@ -125,14 +125,14 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, first.email()))
                 .when()
-                .patch("/api/users/me")
+                .patch("/api/v1/users/me")
                 .then()
                 .statusCode(409)
                 .body("error", equalTo("Email already exists"));
     }
 
     @Test
-    @DisplayName("PATCH /api/users/me with an invalid email returns 400")
+    @DisplayName("PATCH /api/v1/users/me with an invalid email returns 400")
     void shouldRejectInvalidEmail() {
         TestUser user = registerUser("badmail", "SecurePass123!", "ok@example.com");
 
@@ -144,13 +144,13 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .patch("/api/users/me")
+                .patch("/api/v1/users/me")
                 .then()
                 .statusCode(400);
     }
 
     @Test
-    @DisplayName("PUT /api/users/me/password with correct current password succeeds; new login works, old fails")
+    @DisplayName("PUT /api/v1/users/me/password with correct current password succeeds; new login works, old fails")
     void shouldChangePasswordAndUpdateLoginCredentials() {
         TestUser user = registerUser("pwd_user", "OldPass123!", "pwd@example.com");
 
@@ -163,7 +163,7 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .put("/api/users/me/password")
+                .put("/api/v1/users/me/password")
                 .then()
                 .statusCode(204);
 
@@ -176,7 +176,7 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, user.username()))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(401);
 
@@ -186,7 +186,7 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
     }
 
     @Test
-    @DisplayName("PUT /api/users/me/password with wrong current password returns 400")
+    @DisplayName("PUT /api/v1/users/me/password with wrong current password returns 400")
     void shouldRejectWrongCurrentPassword() {
         TestUser user = registerUser("pwd_wrong", "OldPass123!", "pwdw@example.com");
 
@@ -199,14 +199,14 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .put("/api/users/me/password")
+                .put("/api/v1/users/me/password")
                 .then()
                 .statusCode(400)
                 .body("error", equalTo("Current password is incorrect"));
     }
 
     @Test
-    @DisplayName("PUT /api/users/me/password with a weak new password returns 400")
+    @DisplayName("PUT /api/v1/users/me/password with a weak new password returns 400")
     void shouldRejectWeakNewPassword() {
         TestUser user = registerUser("pwd_weak", "OldPass123!", "pwdweak@example.com");
 
@@ -219,7 +219,7 @@ class UserControllerRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .put("/api/users/me/password")
+                .put("/api/v1/users/me/password")
                 .then()
                 .statusCode(400);
     }

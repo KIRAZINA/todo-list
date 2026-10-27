@@ -111,7 +111,7 @@ public abstract class RestAssuredTestBase {
                     }
                     """, uniqueUsername, password, uniqueEmail))
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201)
                 .extract()
@@ -126,7 +126,7 @@ public abstract class RestAssuredTestBase {
                     }
                     """, uniqueUsername, password))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
                 .extract()

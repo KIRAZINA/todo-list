@@ -39,7 +39,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .contentType(ContentType.JSON)
                 .body(registerRequest)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201)
                 .contentType(ContentType.JSON)
@@ -57,7 +57,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .contentType(ContentType.JSON)
                 .body(loginRequest)
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
@@ -75,7 +75,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", "Bearer " + token)
                 .when()
-                .get("/api/tasks")
+                .get("/api/v1/tasks")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
@@ -102,7 +102,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .post("/api/tasks")
+                .post("/api/v1/tasks")
                 .then()
                 .statusCode(201)
                 .contentType(ContentType.JSON)
@@ -119,7 +119,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(token))
                 .pathParam("id", taskId)
                 .when()
-                .get("/api/tasks/{id}")
+                .get("/api/v1/tasks/{id}")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
@@ -138,7 +138,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .patch("/api/tasks/{id}")
+                .patch("/api/v1/tasks/{id}")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
@@ -150,7 +150,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(token))
                 .pathParam("id", taskId)
                 .when()
-                .delete("/api/tasks/{id}")
+                .delete("/api/v1/tasks/{id}")
                 .then()
                 .statusCode(204);
 
@@ -159,7 +159,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(token))
                 .pathParam("id", taskId)
                 .when()
-                .get("/api/tasks/{id}")
+                .get("/api/v1/tasks/{id}")
                 .then()
                 .statusCode(404);
     }
@@ -182,7 +182,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, priority, priority))
                 .when()
-                .post("/api/tasks")
+                .post("/api/v1/tasks")
                 .then()
                 .statusCode(201)
                 .contentType(ContentType.JSON)
@@ -207,7 +207,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, timestamp, timestamp))
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(201)
                 .contentType(ContentType.JSON)
@@ -230,7 +230,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .post("/api/tasks")
+                .post("/api/v1/tasks")
                 .then()
                 .statusCode(201)
                 .contentType(ContentType.JSON)
@@ -263,7 +263,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                         }
                         """, i))
                     .when()
-                    .post("/api/tasks")
+                    .post("/api/v1/tasks")
                     .then()
                     .statusCode(201);
         }
@@ -272,7 +272,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
         given()
                 .header("Authorization", bearer(token))
                 .when()
-                .get("/api/tasks")
+                .get("/api/v1/tasks")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
@@ -295,7 +295,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                     }
                     """)
                 .when()
-                .post("/api/auth/register")
+                .post("/api/v1/auth/register")
                 .then()
                 .statusCode(400)
                 .contentType(ContentType.JSON);
@@ -307,7 +307,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
                 .header("Authorization", bearer(token))
                 .pathParam("id", 99999)
                 .when()
-                .get("/api/tasks/{id}")
+                .get("/api/v1/tasks/{id}")
                 .then()
                 .statusCode(404)
                 .contentType(ContentType.JSON)
@@ -318,7 +318,7 @@ class TodoApiRestAssuredTest extends RestAssuredTestBase {
         given()
                 .pathParam("id", 1)
                 .when()
-                .get("/api/tasks/{id}")
+                .get("/api/v1/tasks/{id}")
                 .then()
                 .statusCode(401);
     }

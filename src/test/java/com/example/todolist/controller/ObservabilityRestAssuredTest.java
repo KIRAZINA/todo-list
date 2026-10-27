@@ -146,7 +146,7 @@ class ObservabilityRestAssuredTest extends RestAssuredTestBase {
                     }
                     """, username))
                 .when()
-                .post("/api/auth/login")
+                .post("/api/v1/auth/login")
                 .then()
                 .statusCode(200)
                 .extract()
