@@ -1,6 +1,7 @@
 package com.example.todolist.config;
 
 import com.example.todolist.security.JwtAuthenticationFilter;
+import com.example.todolist.security.MdcLoggingFilter;
 import com.example.todolist.security.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +27,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitFilter rateLimitFilter;
+    private final MdcLoggingFilter mdcLoggingFilter;
     private final CorsConfigurationSource corsConfigurationSource;
 
     @Value("${spring.h2.console.enabled:false}")
@@ -72,6 +74,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(mdcLoggingFilter, RateLimitFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
