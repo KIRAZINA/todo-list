@@ -27,25 +27,25 @@ Use the **docker** profile for any environment that requires persistent storage.
 ### Authentication and Security
 
 - Registration and login endpoints protected by stateless JWT authentication.
-- Token expiration defaults to 24 hours and is configurable.
+- Access tokens expire after 15 minutes; a 7-day HttpOnly refresh cookie enables silent renewal.
 - HS256 signing with a 256-bit secret key; startup fails fast if `JWT_SECRET` is missing or too short.
-- Password policy enforced at registration: 8-100 characters, at least one lowercase letter, one uppercase letter, and one digit. The same policy is enforced for password changes (`PUT /api/users/me/password`). Both rules live as Bean Validation annotations on `UserRegisterRequest` and `PasswordChangeRequest` respectively — if the policy ever changes, both DTOs must be updated together.
+- Password policy enforced at registration: 8-100 characters, at least one lowercase letter, one uppercase letter, and one digit. The same policy is enforced for password changes (`PUT /api/v1/users/me/password`). Both rules live as Bean Validation annotations on `UserRegisterRequest` and `PasswordChangeRequest` respectively — if the policy ever changes, both DTOs must be updated together.
 - Account lockout after repeated failed logins (5 attempts by default, configurable). While locked, login returns `423 Locked`.
-- Every token carries a unique `jti` claim. `POST /api/auth/logout` blacklists the presented token, so a logged-out token is rejected on subsequent requests.
-- IP-based rate limiting applied to all `/api/auth/**` endpoints. Exceeding the budget returns `429 Too Many Requests`.
+- Every token carries a unique `jti` claim. `POST /api/v1/auth/logout` blacklists the presented token, so a logged-out token is rejected on subsequent requests.
+- IP-based rate limiting applied to all `/api/v1/auth/**` endpoints. Exceeding the budget returns `429 Too Many Requests`.
 - Optional bootstrap of the first `ADMIN` account at startup via environment variables.
 
 ### Role-Based Access Control
 
 - Two roles: `USER` and `ADMIN`.
-- `/api/tasks/**` requires authentication and enforces per-user data isolation: each caller only sees and manages their own tasks.
-- `/api/admin/**` requires the `ADMIN` role and exposes user management and cross-user task visibility.
-- `/api/users/me**` (profile: view email/role, change email, change password) requires authentication for either role; the caller always operates on their own account.
+- `/api/v1/tasks/**` requires authentication and enforces per-user data isolation: each caller only sees and manages their own tasks.
+- `/api/v1/admin/**` requires the `ADMIN` role and exposes user management and cross-user task visibility.
+- `/api/v1/users/me**` (profile: view email/role, change email, change password) requires authentication for either role; the caller always operates on their own account.
 - Missing or invalid credentials return `401 Unauthorized` (JSON); authenticated callers without sufficient rights receive `403 Forbidden`.
 
 ### Admin Console
 
-Explicit endpoints under `/api/admin/**`, gated by the `ADMIN` role:
+Explicit endpoints under `/api/v1/admin/**`, gated by the `ADMIN` role:
 
 - List all users (paginated).
 - Change a user's role between `USER` and `ADMIN`.
@@ -59,7 +59,7 @@ The frontend ships a full Admin Panel UI for these endpoints (see [Admin Panel](
 ### Task Management
 
 - Full CRUD operations for todo items (create returns `201 Created`, delete returns `204 No Content`).
-- `GET /api/tasks` accepts optional `status` (`TODO`, `IN_PROGRESS`, or `DONE`), `priority` (`LOW`, `MEDIUM`, or `HIGH`), and `overdue` (`true`) query parameters, usable independently or combined. Omitting them returns all of the caller's tasks. An unrecognized value for `status`/`priority` returns `400 Bad Request`.
+- `GET /api/v1/tasks` accepts optional `status` (`TODO`, `IN_PROGRESS`, or `DONE`), `priority` (`LOW`, `MEDIUM`, or `HIGH`), and `overdue` (`true`) query parameters, usable independently or combined. Omitting them returns all of the caller's tasks. An unrecognized value for `status`/`priority` returns `400 Bad Request`.
 - `?overdue=true` returns only the caller's overdue tasks, using **the same rule as the response field**: past due (relative to the server's current date) and not `DONE`. `?overdue=false` or omitting the parameter applies no filter.
 - `?dueBefore=YYYY-MM-DD` and `?dueAfter=YYYY-MM-DD` filter by the task's `dueDate`, independently or combined. Both bounds are **inclusive**: `dueBefore=X` means `dueDate <= X` ("on or before X"), `dueAfter=X` means `dueDate >= X` ("on or after X"). Setting both pins a range — `dueBefore=X&dueAfter=X` returns only tasks due **exactly** on `X`. Tasks with no `dueDate` are excluded whenever any date filter is active. An inverted/empty range (e.g. `dueAfter` later than `dueBefore`) returns an empty page, not an error. Dates use ISO `yyyy-MM-dd`; a malformed date returns `400 Bad Request`. Date filters compose with `status`, `priority`, and `overdue`.
 - `?sortBy=<field>` and `?direction=<asc|desc>` sort the result. `sortBy` accepts `createdAt`, `dueDate`, `priority`, or `title` (default `createdAt`); `direction` accepts `asc` or `desc`, case-insensitive (default `desc`). An invalid `sortBy` or `direction` returns `400 Bad Request`. Sorting composes with all filters and pagination; the single sort field maps to a whitelisted entity property, so no arbitrary property injection is possible. Tasks with no `dueDate` use the database's default NULL placement when sorting by `dueDate` (acceptable for this feature).
@@ -119,7 +119,7 @@ The backend listens on `http://localhost:8080`, the frontend on `http://localhos
 
 ## Admin Panel (Frontend UI)
 
-The React frontend (`frontend/`) includes an Admin Panel that surfaces the `/api/admin/**` endpoints in the browser. It is reachable only by `ADMIN`-role accounts.
+The React frontend (`frontend/`) includes an Admin Panel that surfaces the `/api/v1/admin/**` endpoints in the browser. It is reachable only by `ADMIN`-role accounts.
 
 ### Visibility
 
@@ -131,15 +131,15 @@ The React frontend (`frontend/`) includes an Admin Panel that surfaces the `/api
 The **Profile** tab (visible to all authenticated users) surfaces the self-service endpoints in the browser:
 
 - Shows the caller's username, role, email, and member-since date.
-- An email change form (calls `PATCH /api/users/me`; errors such as a duplicate email or an invalid address are shown in the error banner).
-- A password change form with current/new/confirm fields (client-side new==confirm check; `PUT /api/users/me/password`). Success messages and API errors are shown in banners. Username is read-only — there is no way to change it.
+- An email change form (calls `PATCH /api/v1/users/me`; errors such as a duplicate email or an invalid address are shown in the error banner).
+- A password change form with current/new/confirm fields (client-side new==confirm check; `PUT /api/v1/users/me/password`). Success messages and API errors are shown in banners. Username is read-only — there is no way to change it.
 
 ### Capabilities
 
 - **Users tab** — paginated list of every account (id, username, email, role, created-at). For each user (except yourself) you can:
   - Switch their role between `USER` and `ADMIN` via a dropdown. Role changes persist immediately.
   - Delete the user with a confirmation prompt (this cascades to all of their tasks). If you are on the last page and delete the final row, the panel steps back a page.
-- **Tasks tab** — paginated list of every task across all users (title, status, priority, owner, due date, created-at). Each row's owner is the server-supplied `ownerUsername` field — no client-side user lookup needed. The tab mirrors the same filters as the regular task board (status, priority, overdue, due-date range) plus sorting, applied server-side across all users via `GET /api/admin/tasks`.
+- **Tasks tab** — paginated list of every task across all users (title, status, priority, owner, due date, created-at). Each row's owner is the server-supplied `ownerUsername` field — no client-side user lookup needed. The tab mirrors the same filters as the regular task board (status, priority, overdue, due-date range) plus sorting, applied server-side across all users via `GET /api/v1/admin/tasks`.
 - Errors (e.g. "Cannot change your own role via this endpoint", "Cannot delete your own account via this endpoint", or "Cannot demote or delete the last remaining ADMIN") are surfaced in an error banner. The role dropdown and delete button are disabled on your own row, mirroring the backend's self-protection rules.
 
 ### Bootstrap the first admin
@@ -176,7 +176,7 @@ If no `ADMIN_PASSWORD` is provided, no admin is bootstrapped; promote an existin
 
 ### Token Configuration
 
-- **Default expiration**: 24 hours (86,400,000 ms).
+- **Access token expiration**: 15 minutes (900,000 ms). **Refresh token**: 7 days via HttpOnly cookie.
 - **Secret**: Base64-encoded value that decodes to at least 256 bits (32 bytes). Set via the `JWT_SECRET` environment variable; there is no default and startup aborts without it.
 - **Algorithm**: HS256.
 
@@ -184,49 +184,49 @@ If no `ADMIN_PASSWORD` is provided, no admin is bootstrapped; promote an existin
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/register` | Register a new `USER` account (`201 Created`) |
-| POST | `/api/auth/login` | Authenticate and obtain a JWT |
-| POST | `/api/auth/logout` | Revoke the presented token (`204 No Content`) |
+| POST | `/api/v1/auth/register` | Register a new `USER` account (`201 Created`) |
+| POST | `/api/v1/auth/login` | Authenticate and obtain a JWT |
+| POST | `/api/v1/auth/logout` | Revoke the presented token (`204 No Content`) |
 
 ### Admin Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/admin/users` | List all users, paginated (`?page=0&size=20`) |
-| PATCH | `/api/admin/users/{id}/role` | Change a user's role; body `{"role": "USER" or "ADMIN"}` |
-| DELETE | `/api/admin/users/{id}` | Delete a user and their tasks (`204 No Content`) |
-| GET | `/api/admin/tasks` | List all tasks across users, paginated. Supports the same optional filters/sort as `GET /api/tasks` — `status`, `priority`, `overdue`, `dueBefore`, `dueAfter`, `sortBy`, `direction` — plus `?page` / `?size`. No owner scoping: results span every user, and each `TaskResponse` carries `ownerUsername`. Invalid filter values return `400 Bad Request`. Example: `GET /api/admin/tasks?status=DONE&sortBy=title&direction=asc&page=0&size=50` |
+| GET | `/api/v1/admin/users` | List all users, paginated (`?page=0&size=20`) |
+| PATCH | `/api/v1/admin/users/{id}/role` | Change a user's role; body `{"role": "USER" or "ADMIN"}` |
+| DELETE | `/api/v1/admin/users/{id}` | Delete a user and their tasks (`204 No Content`) |
+| GET | `/api/v1/admin/tasks` | List all tasks across users, paginated. Supports the same optional filters/sort as `GET /api/v1/tasks` — `status`, `priority`, `overdue`, `dueBefore`, `dueAfter`, `sortBy`, `direction` — plus `?page` / `?size`. No owner scoping: results span every user, and each `TaskResponse` carries `ownerUsername`. Invalid filter values return `400 Bad Request`. Example: `GET /api/v1/admin/tasks?status=DONE&sortBy=title&direction=asc&page=0&size=50` |
 
 ### Profile Endpoints
 
-Self-service account management for the authenticated caller (either role). The caller is always the logged-in user — there is no way to target another account here (use `/api/admin/**` for that).
+Self-service account management for the authenticated caller (either role). The caller is always the logged-in user — there is no way to target another account here (use `/api/v1/admin/**` for that).
 
 | Method | Endpoint | Body | Description |
 |--------|----------|------|-------------|
-| GET | `/api/users/me` | — | Return the caller's profile (`200 UserResponse` with `id, username, email, role, createdAt`) |
-| PATCH | `/api/users/me` | `{"email": "..."}` | Change the caller's email (`200 UserResponse`). If the new email equals the current one it is a no-op success. A different email already in use returns `409 Conflict`; an invalid/blank email returns `400 Bad Request`. Username is immutable and is **not** exposed here. |
-| PUT | `/api/users/me/password` | `{"currentPassword": "...", "newPassword": "..."}` | Change the caller's password (`204 No Content`). The current password is verified first; a mismatch returns `400 Bad Request` with `{"error":"Current password is incorrect"}`. `newPassword` enforces the same policy as registration (8–100 characters with ≥1 lowercase, ≥1 uppercase, ≥1 digit); a violation returns `400 Bad Request`. |
+| GET | `/api/v1/users/me` | — | Return the caller's profile (`200 UserResponse` with `id, username, email, role, createdAt`) |
+| PATCH | `/api/v1/users/me` | `{"email": "..."}` | Change the caller's email (`200 UserResponse`). If the new email equals the current one it is a no-op success. A different email already in use returns `409 Conflict`; an invalid/blank email returns `400 Bad Request`. Username is immutable and is **not** exposed here. |
+| PUT | `/api/v1/users/me/password` | `{"currentPassword": "...", "newPassword": "..."}` | Change the caller's password (`204 No Content`). The current password is verified first; a mismatch returns `400 Bad Request` with `{"error":"Current password is incorrect"}`. `newPassword` enforces the same policy as registration (8–100 characters with ≥1 lowercase, ≥1 uppercase, ≥1 digit); a violation returns `400 Bad Request`. |
 
 **Known limitations (intentional, not implemented):**
 
-- Changing a password does **not** revoke the caller's other active tokens. The API is stateless JWT; tokens remain valid until they expire or are explicitly revoked via logout (`POST /api/auth/logout`).
-- `PUT /api/users/me/password` is **not** rate-limited or lockout-protected. The rate limiter only covers `/api/auth/**`. This is a future hardening item (the endpoint requires the current password, which raises the bar, but brute-forcing it is still possible).
+- Changing a password does **not** revoke the caller's other active tokens. The API is stateless JWT; tokens remain valid until they expire or are explicitly revoked via logout (`POST /api/v1/auth/logout`).
+- `PUT /api/v1/users/me/password` is **not** rate-limited or lockout-protected. The rate limiter only covers `/api/v1/auth/**`. This is a future hardening item (the endpoint requires the current password, which raises the bar, but brute-forcing it is still possible).
 
 **Profile endpoints curl examples:**
 
 ```bash
 # View your own profile
-curl -X GET http://localhost:8080/api/users/me \
+curl -X GET http://localhost:8080/api/v1/users/me \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Change your email
-curl -X PATCH http://localhost:8080/api/users/me \
+curl -X PATCH http://localhost:8080/api/v1/users/me \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your_jwt_token>" \
   -d '{"email":"new.address@example.com"}'
 
 # Change your password (verifies the current one first)
-curl -X PUT http://localhost:8080/api/users/me/password \
+curl -X PUT http://localhost:8080/api/v1/users/me/password \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your_jwt_token>" \
   -d '{"currentPassword":"OldPass123!","newPassword":"NewPass456!"}'
@@ -234,11 +234,11 @@ curl -X PUT http://localhost:8080/api/users/me/password \
 
 ### Secured Endpoints
 
-All endpoints under `/api/**` require a valid JWT, with the following exceptions:
+All endpoints under `/api/v1/**` require a valid JWT, with the following exceptions:
 
-- `/api/auth/login` and `/api/auth/register` are public.
-- `/api/auth/logout` requires authentication.
-- `/api/test/health` and `/` are public.
+- `/api/v1/auth/login` and `/api/v1/auth/register` are public.
+- `/api/v1/auth/logout` requires authentication.
+- `/api/v1/test/health` and `/` are public.
 
 **Bearer token format:**
 
@@ -248,7 +248,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyQGV4YW1wbGUuY29tIiwia
 
 **Role mapping:**
 
-- `ROLE_USER`: standard user operations on own tasks plus self-service profile management (`/api/users/me**`).
+- `ROLE_USER`: standard user operations on own tasks plus self-service profile management (`/api/v1/users/me**`).
 - `ROLE_ADMIN`: all user operations plus admin endpoints (all tasks, user management).
 
 ### Account Lockout
@@ -280,7 +280,7 @@ Security model:
 Examples:
 
 ```bash
-# Health check (public) - use /actuator/health instead of /api/test/health
+# Health check (public) - use /actuator/health instead of /api/v1/test/health
 curl http://localhost:8080/actuator/health
 
 # Health with full component details (ADMIN token)
@@ -316,83 +316,83 @@ All API routes are prefixed with `/api`.
 
 ```bash
 # Get all tasks (requires authentication)
-curl -X GET http://localhost:8080/api/tasks \
+curl -X GET http://localhost:8080/api/v1/tasks \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Filter tasks by status (TODO | IN_PROGRESS | DONE)
-curl -X GET "http://localhost:8080/api/tasks?status=DONE" \
+curl -X GET "http://localhost:8080/api/v1/tasks?status=DONE" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Filter tasks by priority (LOW | MEDIUM | HIGH)
-curl -X GET "http://localhost:8080/api/tasks?priority=HIGH" \
+curl -X GET "http://localhost:8080/api/v1/tasks?priority=HIGH" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Combine status and priority filters
-curl -X GET "http://localhost:8080/api/tasks?status=TODO&priority=HIGH" \
+curl -X GET "http://localhost:8080/api/v1/tasks?status=TODO&priority=HIGH" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Filter + paginate together
-curl -X GET "http://localhost:8080/api/tasks?status=TODO&page=0&size=20" \
+curl -X GET "http://localhost:8080/api/v1/tasks?status=TODO&page=0&size=20" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Create a new task
-curl -X POST http://localhost:8080/api/tasks \
+curl -X POST http://localhost:8080/api/v1/tasks \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your_jwt_token>" \
   -d '{"title":"Learn Spring Boot","description":"Complete the tutorial","dueDate":"2026-12-31"}'
 
 # Create a task due well in the past — the response includes "overdue": true
-curl -X POST http://localhost:8080/api/tasks \
+curl -X POST http://localhost:8080/api/v1/tasks \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your_jwt_token>" \
   -d '{"title":"Overdue task","dueDate":"2026-01-15"}'
 
 # Filter to overdue tasks only
-curl -X GET "http://localhost:8080/api/tasks?overdue=true" \
+curl -X GET "http://localhost:8080/api/v1/tasks?overdue=true" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Overdue composes with other filters
-curl -X GET "http://localhost:8080/api/tasks?overdue=true&priority=HIGH" \
+curl -X GET "http://localhost:8080/api/v1/tasks?overdue=true&priority=HIGH" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Tasks due on or before a date (inclusive upper bound)
-curl -X GET "http://localhost:8080/api/tasks?dueBefore=2026-06-01" \
+curl -X GET "http://localhost:8080/api/v1/tasks?dueBefore=2026-06-01" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Tasks due on or after a date (inclusive lower bound)
-curl -X GET "http://localhost:8080/api/tasks?dueAfter=2026-06-01" \
+curl -X GET "http://localhost:8080/api/v1/tasks?dueAfter=2026-06-01" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Tasks due within an inclusive range
-curl -X GET "http://localhost:8080/api/tasks?dueBefore=2026-06-30&dueAfter=2026-06-01" \
+curl -X GET "http://localhost:8080/api/v1/tasks?dueBefore=2026-06-30&dueAfter=2026-06-01" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Tasks due exactly on one day (inclusive bounds on the same date)
-curl -X GET "http://localhost:8080/api/tasks?dueBefore=2026-06-15&dueAfter=2026-06-15" \
+curl -X GET "http://localhost:8080/api/v1/tasks?dueBefore=2026-06-15&dueAfter=2026-06-15" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Date range composes with status, priority, and overdue
-curl -X GET "http://localhost:8080/api/tasks?dueBefore=2026-06-30&status=TODO&priority=HIGH" \
+curl -X GET "http://localhost:8080/api/v1/tasks?dueBefore=2026-06-30&status=TODO&priority=HIGH" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Sort by title ascending
-curl -X GET "http://localhost:8080/api/tasks?sortBy=title&direction=asc" \
+curl -X GET "http://localhost:8080/api/v1/tasks?sortBy=title&direction=asc" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Sort by due date, newest deadline first
-curl -X GET "http://localhost:8080/api/tasks?sortBy=dueDate&direction=desc" \
+curl -X GET "http://localhost:8080/api/v1/tasks?sortBy=dueDate&direction=desc" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # Sort composes with filters and pagination (default sort is createdAt DESC)
-curl -X GET "http://localhost:8080/api/tasks?status=TODO&sortBy=priority&direction=asc&page=0&size=20" \
+curl -X GET "http://localhost:8080/api/v1/tasks?status=TODO&sortBy=priority&direction=asc&page=0&size=20" \
   -H "Authorization: Bearer <your_jwt_token>"
 
 # List all users as an administrator
-curl -X GET "http://localhost:8080/api/admin/users?page=0&size=20" \
+curl -X GET "http://localhost:8080/api/v1/admin/users?page=0&size=20" \
   -H "Authorization: Bearer <your_admin_jwt_token>"
 
 # Promote a user to ADMIN
-curl -X PATCH http://localhost:8080/api/admin/users/<id>/role \
+curl -X PATCH http://localhost:8080/api/v1/admin/users/<id>/role \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your_admin_jwt_token>" \
   -d '{"role":"ADMIN"}'
@@ -508,3 +508,4 @@ frontend/
 - **API Versioning**: support for multiple API versions.
 
 Note: CI is already in place (see `.github/workflows/ci.yml`): on every push/PR to `main` it runs `./mvnw verify` on JDK 17, including the Testcontainers PostgreSQL smoke test, and uploads the surefire reports as an artifact.
+
