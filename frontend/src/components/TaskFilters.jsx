@@ -17,6 +17,10 @@ export default function TaskFilters({
   onPriorityChange,
   overdue,
   onOverdueToggle,
+  nearDue,
+  onNearDueToggle,
+  tagFilter,
+  onTagFilterChange,
   dueFrom,
   onDueFromChange,
   dueTo,
@@ -50,7 +54,7 @@ export default function TaskFilters({
           </button>
         ))}
       </div>
-      <div className="status-filters" role="group" aria-label="Filter overdue tasks">
+      <div className="status-filters" role="group" aria-label="Filter by due date flags">
         <button
           className={`filter-btn overdue-toggle${overdue ? " active" : ""}`}
           onClick={onOverdueToggle}
@@ -58,8 +62,22 @@ export default function TaskFilters({
         >
           Overdue
         </button>
+        <button
+          className={`filter-btn near-due-toggle${nearDue ? " active" : ""}`}
+          onClick={onNearDueToggle}
+          aria-pressed={nearDue}
+        >
+          Near due
+        </button>
       </div>
       <div className="date-filters" role="group" aria-label="Filter tasks by due date">
+        <label htmlFor="tagFilter">Tag</label>
+        <input
+          id="tagFilter"
+          value={tagFilter}
+          onChange={(e) => onTagFilterChange(e.target.value)}
+          placeholder="tag name"
+        />
         <label htmlFor="dueFrom">Due from</label>
         <input
           id="dueFrom"

@@ -801,3 +801,44 @@ main {
       "dot actions";
   }
 }
+/* Tag chips */
+.tag-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tag-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: var(--accent, #6366f1);
+  color: #fff;
+}
+
+/* Subtask checklist */
+.subtask-progress { margin-top: 8px; }
+.progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent, #6366f1); transition: width 0.2s; }
+.progress-text { font-size: 0.75rem; color: #6b7280; }
+.subtask-list { list-style: none; padding: 0; margin: 6px 0 0; }
+.subtask-item { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.subtask-item.completed span { text-decoration: line-through; color: #9ca3af; }
+.subtask-list-edit { margin-top: 4px; }
+.subtask-input-row { display: flex; gap: 6px; }
+
+/* Due date badges */
+.badge-near-due {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  background: #fef3c7;
+  color: #92400e;
+}
+.badge-overdue {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  background: #fee2e2;
+  color: #991b1b;
+}
