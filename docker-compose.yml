@@ -25,6 +25,18 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - todo-redis-data:/data
+
   backend:
     build:
       context: .
@@ -35,6 +47,8 @@ services:
       DB_NAME: tododb
       DB_USERNAME: todo
       DB_PASSWORD: todo
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in a .env file — see .env.example}
       JWT_EXPIRATION_MS: 86400000
       CORS_ALLOWED_ORIGINS: http://localhost:3000
@@ -45,6 +59,8 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8080:8080"
@@ -59,3 +75,4 @@ services:
 
 volumes:
   todo-db-data:
+  todo-redis-data:

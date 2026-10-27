@@ -1,6 +1,7 @@
 package com.example.todolist.security;
 
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,7 +68,7 @@ class JwtTokenProviderTest {
 
     @Test
     void shouldRejectExpiredToken() {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
         String expiredToken = Jwts.builder()
                 .subject("testuser")
                 .issuedAt(new Date(System.currentTimeMillis() - 10000))
@@ -87,7 +88,7 @@ class JwtTokenProviderTest {
 
     @Test
     void shouldRejectTokenWithInvalidSignature() {
-        SecretKey wrongKey = Keys.hmacShaKeyFor("different-secret-key-at-least-256-bits-1234567890abcdef".getBytes());
+        SecretKey wrongKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode("ZGlmZmVyZW50LXNlY3JldC1rZXktYXQtbGVhc3QtMjU2LWJpdHMtMTIzNDU2Nzg5MGFiY2RlZg=="));
         String tokenWithWrongSignature = Jwts.builder()
                 .subject("testuser")
                 .issuedAt(new Date())

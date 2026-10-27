@@ -50,6 +50,9 @@ public class Task {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @Version
+    private Long version;
+
     public enum Priority {
         LOW, MEDIUM, HIGH
     }

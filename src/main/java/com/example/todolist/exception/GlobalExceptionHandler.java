@@ -12,6 +12,9 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.hibernate.StaleObjectStateException;
+import org.hibernate.StaleStateException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -116,7 +119,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
 
-    @ExceptionHandler(Exception.class)
+    @ExceptionHandler({ObjectOptimisticLockingFailureException.class, StaleObjectStateException.class, StaleStateException.class})
+    public ResponseEntity<Map<String, String>> handleOptimisticLocking(Exception ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "Resource was updated by another request. Please retry.");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
     public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
         if (isJsonParseException(ex)) {
             Map<String, String> error = new HashMap<>();

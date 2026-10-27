@@ -8,5 +8,6 @@ spring:
   flyway:
     enabled: false
 
+# jwt.secret must be a valid Base64-encoded string decoding to at least 256 bits (32 bytes).
 jwt:
-  secret: ${JWT_SECRET:dev-secret-key-at-least-256-bits-long-123456}
+  secret: ${JWT_SECRET:R0c3ZXFzM0FJRTRFM0JSS2lBSnFYM2t6bDBaTW9LOHRMTitveUkvaz9aRT0=}

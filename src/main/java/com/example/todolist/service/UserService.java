@@ -18,6 +18,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +62,8 @@ public class UserService {
         return toResponse(user);
     }
 
+    @Cacheable(value = "users", key = "#username")
+    @Transactional(readOnly = true)
     public User findByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -113,6 +117,7 @@ public class UserService {
         return toResponse(user);
     }
 
+    @CacheEvict(value = "users", allEntries = true)
     @Transactional
     public UserResponse updateUserRole(Long targetUserId, String newRole, User currentAdmin) {
         if (newRole == null || !(newRole.equals("USER") || newRole.equals("ADMIN"))) {
@@ -130,6 +135,7 @@ public class UserService {
         return toResponse(target);
     }
 
+    @CacheEvict(value = "users", allEntries = true)
     @Transactional
     public void deleteUser(Long targetUserId, User currentAdmin) {
         if (targetUserId.equals(currentAdmin.getId())) {
@@ -159,11 +165,13 @@ public class UserService {
         }
     }
 
+    @Cacheable(value = "users", key = "#user.username")
     @Transactional(readOnly = true)
     public UserResponse getCurrentUserProfile(User user) {
         return toResponse(user);
     }
 
+    @CacheEvict(value = "users", key = "#user.username")
     @Transactional
     public UserResponse updateEmail(User user, EmailUpdateRequest request) {
         String newEmail = request.getEmail();
@@ -179,6 +187,7 @@ public class UserService {
         return toResponse(user);
     }
 
+    @CacheEvict(value = "users", key = "#user.username")
     @Transactional
     public void changePassword(User user, PasswordChangeRequest request) {
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {

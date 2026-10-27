@@ -12,5 +12,7 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
-  flyway:
-    enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}

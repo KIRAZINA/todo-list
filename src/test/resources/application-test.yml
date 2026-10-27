@@ -1,5 +1,10 @@
 spring:
-  datasource:
+  cache:
+    type: simple
+  data:
+    redis:
+      host: localhost
+      port: 6379
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
   h2:
@@ -14,8 +19,8 @@ spring:
   flyway:
     enabled: true
 jwt:
-  secret: test-secret-key-1234567890abcdef-1234567890abcdef
-  expiration-ms: 86400000
+  secret: R0c3ZXFzM0FJRTRFM0JSS2lBSnFYM2t6bDBaTW9LOHRMTitveUkvaz9aRT0=
+  expiration-ms: 900000
 
 # The API test suite fires many auth requests from one "client" (localhost),
 # so give the rate limiter a budget it will never hit in tests.
@@ -38,6 +43,9 @@ management:
     health:
       show-details: when-authorized
       roles: ADMIN
+  health:
+    redis:
+      enabled: false
   info:
     env:
       enabled: true

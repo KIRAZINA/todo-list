@@ -3,6 +3,7 @@ package com.example.todolist.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,7 +12,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 
@@ -28,20 +28,29 @@ public class JwtTokenProvider {
 
     @PostConstruct
     public void validateSecret() {
-        if (jwtSecret == null || jwtSecret.isEmpty()) {
+        if (jwtSecret == null || jwtSecret.isBlank()) {
             throw new IllegalArgumentException(
                 "JWT secret must not be empty. " +
                 "Please set JWT_SECRET environment variable or jwt.secret property " +
-                "to a secure secret key (at least 32 characters/256 bits)."
+                "to a valid Base64-encoded secret key (at least 256 bits / 32 bytes)."
             );
         }
-        byte[] secretBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+        byte[] secretBytes;
+        try {
+            secretBytes = Decoders.BASE64.decode(jwtSecret);
+        } catch (RuntimeException ex) {
+            throw new IllegalArgumentException(
+                "JWT secret must be a valid Base64-encoded string. " +
+                "Please set JWT_SECRET to a Base64-encoded value of at least 256 bits (32 bytes).",
+                ex
+            );
+        }
         if (secretBytes.length < MIN_SECRET_LENGTH_BYTES) {
             throw new IllegalArgumentException(
                 String.format(
-                    "JWT secret must be at least %d bytes (256 bits) when encoded as UTF-8 for HS256 security. " +
-                    "Current secret length: %d bytes. " +
-                    "Please set JWT_SECRET environment variable or jwt.secret property to a secure secret key.",
+                    "JWT secret must decode to at least %d bytes (256 bits) for HS256 security. " +
+                    "Current decoded length: %d bytes. " +
+                    "Please set JWT_SECRET to a Base64-encoded value of at least 256 bits.",
                     MIN_SECRET_LENGTH_BYTES, secretBytes.length
                 )
             );
@@ -49,7 +58,7 @@ public class JwtTokenProvider {
     }
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
     }
 
     public String generateToken(Authentication authentication) {
@@ -92,6 +101,9 @@ public class JwtTokenProvider {
     }
 
     public boolean validateToken(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
         try {
             getClaimsParser().parseSignedClaims(token);
             return true;
