@@ -415,35 +415,51 @@ class AdminControllerRestAssuredTest extends RestAssuredTestBase {
 
         String adminToken = createAdmin("sort_admin");
 
-        List<String> titles = given()
-                .header("Authorization", bearer(adminToken))
-                .queryParam("sortBy", "title")
-                .queryParam("direction", "asc")
-                .queryParam("size", "100")
-                .when()
-                .get("/api/v1/admin/tasks")
-                .then()
-                .statusCode(200)
-                .extract()
-                .jsonPath()
-                .getList("content.title", String.class);
+        List<String> titles = new java.util.ArrayList<>();
+        int page = 0;
+        int totalPages = 1;
+        while (page < totalPages) {
+            io.restassured.response.Response resp = given()
+                    .header("Authorization", bearer(adminToken))
+                    .queryParam("sortBy", "title")
+                    .queryParam("direction", "asc")
+                    .queryParam("page", page)
+                    .queryParam("size", "100")
+                    .when()
+                    .get("/api/v1/admin/tasks")
+                    .then()
+                    .statusCode(200)
+                    .extract()
+                    .response();
+            titles.addAll(resp.jsonPath().getList("content.title", String.class));
+            totalPages = resp.jsonPath().getInt("totalPages");
+            page++;
+        }
 
         List<String> mine = titles.stream().filter(t -> t.endsWith("-" + ts)).toList();
         assertEquals(List.of(sortA.getTitle(), sortB.getTitle(), sortC.getTitle()), mine);
 
         // Each task exposes the correct ownerUsername (maps title -> owner).
-        List<Map<String, Object>> tasks = given()
-                .header("Authorization", bearer(adminToken))
-                .queryParam("sortBy", "title")
-                .queryParam("direction", "asc")
-                .queryParam("size", "100")
-                .when()
-                .get("/api/v1/admin/tasks")
-                .then()
-                .statusCode(200)
-                .extract()
-                .jsonPath()
-                .getList("content");
+        List<Map<String, Object>> tasks = new java.util.ArrayList<>();
+        page = 0;
+        totalPages = 1;
+        while (page < totalPages) {
+            io.restassured.response.Response resp = given()
+                    .header("Authorization", bearer(adminToken))
+                    .queryParam("sortBy", "title")
+                    .queryParam("direction", "asc")
+                    .queryParam("page", page)
+                    .queryParam("size", "100")
+                    .when()
+                    .get("/api/v1/admin/tasks")
+                    .then()
+                    .statusCode(200)
+                    .extract()
+                    .response();
+            tasks.addAll(resp.jsonPath().getList("content"));
+            totalPages = resp.jsonPath().getInt("totalPages");
+            page++;
+        }
 
         for (Map<String, Object> task : tasks) {
             String title = (String) task.get("title");
