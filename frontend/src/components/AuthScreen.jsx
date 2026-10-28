@@ -1,30 +1,37 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api, setToken } from "../api";
 
 export default function AuthScreen({ onAuthenticated }) {
+  const navigate = useNavigate();
   const [mode, setMode] = useState("login"); // "login" | "register"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [busy, setBusy] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setBusy(true);
     try {
       if (mode === "register") {
         await api.register(username, password, email);
-        // Auto-login right after registering so the tester doesn't
-        // have to re-type credentials.
-        const res = await api.login(username, password);
-        setToken(res.token);
+        // After successful registration, return to the login screen so the
+        // user can sign in with the credentials they just created.
+        setSuccess("Registration successful. Please sign in.");
+        setMode("login");
+        setPassword("");
+        navigate("/login", { replace: true });
       } else {
         const res = await api.login(username, password);
         setToken(res.token);
+        onAuthenticated();
+        navigate("/", { replace: true });
       }
-      onAuthenticated();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,6 +46,7 @@ export default function AuthScreen({ onAuthenticated }) {
         <h1>{mode === "login" ? "Sign in" : "Create an account"}</h1>
 
         {error && <div className="error-banner">{error}</div>}
+        {success && <div className="success-banner">{success}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="field">
@@ -83,7 +91,7 @@ export default function AuthScreen({ onAuthenticated }) {
               title="At least 8 characters, with one lowercase letter, one uppercase letter, and one digit"
             />
             {mode === "register" && (
-              <small className="field-hint">
+              <small className="field-hint" style={{ color: "var(--danger, #f0a6a4)" }}>
                 At least 8 characters, with one lowercase letter, one uppercase letter, and one digit.
               </small>
             )}
@@ -98,14 +106,14 @@ export default function AuthScreen({ onAuthenticated }) {
           {mode === "login" ? (
             <>
               No account yet?{" "}
-              <button type="button" onClick={() => { setMode("register"); setError(null); }}>
+              <button type="button" onClick={() => { setMode("register"); setError(null); setSuccess(null); }}>
                 Register instead
               </button>
             </>
           ) : (
             <>
               Already have an account?{" "}
-              <button type="button" onClick={() => { setMode("login"); setError(null); }}>
+              <button type="button" onClick={() => { setMode("login"); setError(null); setSuccess(null); }}>
                 Sign in instead
               </button>
             </>
